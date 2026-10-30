@@ -23,6 +23,31 @@ const makeReview = async (pgn = PGN, user = 'testuser') => {
   return res.postId;
 };
 
+test('the post carries its feed card text, cut to fit postData', async () => {
+  const submit = stubUserActions();
+  const long = 'é'.repeat(400);
+  const res = await createReviewPost(
+    { pgnOrUrl: PGN.replace('Ann', 'A'.repeat(200)), caption: long },
+    'testuser'
+  );
+  expect(res.ok).toBe(true);
+  const data = submit.mock.calls[0]?.[0].postData;
+  expect(data).toMatchObject({
+    kind: 'review',
+    card: {
+      kind: 'review',
+      white: 'A'.repeat(40),
+      black: 'Bob',
+      result: '1-0',
+      caption: 'é'.repeat(140),
+      game: null,
+    },
+  });
+  expect(new TextEncoder().encode(JSON.stringify(data)).length).toBeLessThan(
+    2048
+  );
+});
+
 const analysisFor = (pgn = PGN): ReviewAnalysis => {
   const g = parseGame(pgn);
   if ('error' in g) throw new Error(g.error);

@@ -5,11 +5,16 @@ import './styles/theme.css';
 import './styles/splash.css';
 
 import { context, requestExpandedMode } from '@devvit/web/client';
-import type { InitResponse, PostData, PostKind } from '../shared/api';
+import type { InitResponse, PostData } from '../shared/api';
 import { api } from './lib/api';
 import { sideToMove } from './lib/fen-lite';
 import { boardSide, snapToPixels } from './lib/pixel';
-import { infoFromInit, loadingInfo, renderSplash } from './splash-view';
+import {
+  infoFromInit,
+  infoFromPostData,
+  readPostData,
+  renderSplash,
+} from './splash-view';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -20,22 +25,6 @@ if (!root) throw new Error('missing #root');
 // only, so the splash bundle stays free of chess.js.)
 function firstMoverOf(pgn: string): 'white' | 'black' {
   return /\[FEN "[^"]*\s(b)\s/.exec(pgn) ? 'black' : 'white';
-}
-
-const KINDS: PostKind[] = ['puzzle', 'poll', 'review', 'elo', 'game'];
-const isKind = (v: unknown): v is PostKind => KINDS.some((k) => k === v);
-
-function readPostData(raw: unknown): PostData | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const kind = 'kind' in raw ? raw.kind : null;
-  const fen = 'fen' in raw ? raw.fen : null;
-  const orientation = 'orientation' in raw ? raw.orientation : null;
-  if (!isKind(kind) || typeof fen !== 'string') return null;
-  return {
-    kind,
-    fen,
-    orientation: orientation === 'black' ? 'black' : 'white',
-  };
 }
 
 function openGame(event: MouseEvent): void {
@@ -55,6 +44,9 @@ const GAP = 12; // .card gap
 const TEXT_ROW = 76; // col: the text row under the board
 const TEXT_COL = 96; // row: the narrowest text column that reads well
 const MAX_BOARD = 440;
+const MIN_BOARD = 64; // smaller than this means the card had no size yet
+const MAX_RETRIES = 600; // ~10 s of frames, then rely on resize events
+let retries = 0;
 
 function fitBoard(): void {
   const board = root?.querySelector<HTMLElement>('.board');
@@ -66,21 +58,29 @@ function fitBoard(): void {
   const useCol = col >= row;
   root.classList.toggle('col', useCol);
   root.classList.toggle('row', !useCol);
-  const side = `${boardSide(Math.max(0, useCol ? col : row))}px`;
-  board.style.width = side;
-  board.style.height = side;
+  const fit = boardSide(Math.max(0, useCol ? col : row));
+  board.style.width = `${fit}px`;
+  board.style.height = `${fit}px`;
   snapToPixels(board);
+  // The card isn't laid out yet (seen on desktop Reddit, where no resize
+  // event followed): try again next frame until the board has a real size.
+  if (fit < MIN_BOARD && retries++ < MAX_RETRIES)
+    requestAnimationFrame(fitBoard);
 }
 
 function render(...args: Parameters<typeof renderSplash>): void {
   renderSplash(...args);
   fitBoard();
 }
-window.addEventListener('resize', fitBoard);
+// Also refit when the stylesheets land: the script can run before they
+// apply, when the root has no height yet.
+new ResizeObserver(fitBoard).observe(root);
+window.addEventListener('load', fitBoard);
 
 const initial = readPostData(context.postData);
-const kind: PostKind = initial?.kind ?? 'puzzle';
-render(root, initial, loadingInfo(kind), openGame);
+// The post's fixed text shows at once; init then fills in the live parts.
+const early = infoFromPostData(initial);
+render(root, initial, early, openGame);
 
 function fallbackPostData(init: InitResponse): PostData {
   const post = init.post;
@@ -103,7 +103,7 @@ function fallbackPostData(init: InitResponse): PostData {
 }
 
 api
-  .init()
+  .cardInit()
   .then((init) => {
     const post = init.post;
     const postData = initial ?? fallbackPostData(init);
@@ -134,7 +134,7 @@ api
     render(
       root,
       initial,
-      { ...loadingInfo(kind), cta: 'Open' },
+      { ...early, meta: early.meta ?? '', cta: 'Open' },
       openGame,
       'Couldn’t load details'
     );

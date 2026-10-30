@@ -10,6 +10,7 @@ import type {
 } from '../shared/api';
 import { postDailyPuzzle } from './core/daily';
 import type { PuzzleSet } from './core/puzzles';
+import { purgeUser } from './core/privacy';
 import { keys } from './core/store';
 import { as, asMod, at, call, row } from './test-utils';
 
@@ -53,9 +54,18 @@ const hint = (h: Headers, u: string | null, postId: string, moves: unknown) =>
   );
 const reveal = (h: Headers, u: string | null, postId: string) =>
   as(h, { username: u, postId }, () => call('POST', '/api/puzzle/reveal', {}));
-const init = async (h: Headers, u: string | null, postId: string) =>
+// `open` = the expanded view's init (starts the solve clock); without it, the
+// feed card's.
+const init = async (
+  h: Headers,
+  u: string | null,
+  postId: string,
+  open = true
+) =>
   json<InitResponse>(
-    await as(h, { username: u, postId }, () => call('GET', '/api/init'))
+    await as(h, { username: u, postId }, () =>
+      call('GET', open ? '/api/init?open=1' : '/api/init')
+    )
   );
 
 /** Play the whole correct line; returns the final response. */
@@ -63,6 +73,19 @@ const solve = async (h: Headers, u: string | null, postId: string) => {
   await move(h, u, postId, ['d2d8']);
   return json<PuzzleMoveResponse>(await move(h, u, postId, ['d2d8', 'd1d8']));
 };
+
+describe('privacy index', () => {
+  test('a move without an opening init still indexes the user for deletion', async ({
+    headers,
+  }) => {
+    const id = await postPuzzle(1);
+    await move(headers, 'ann', id, ['d2d8']); // correct, not finished
+    expect(await redis.hGet(keys.attempts(id), 't0:ann')).toBeDefined();
+    await purgeUser('ann');
+    expect(await redis.hGet(keys.attempts(id), 't0:ann')).toBeUndefined();
+    expect(await redis.hGet(keys.attempts(id), 'tm:ann')).toBeUndefined();
+  });
+});
 
 describe('puzzle view', () => {
   test('never sends the solution before the viewer finishes', async ({
@@ -526,5 +549,49 @@ describe('solve timing (internal)', () => {
       postId: id,
     });
     expect(await redis.exists(keys.attempts(id))).toBe(0);
+  });
+
+  test('a repeat open writes nothing', async ({ headers }) => {
+    const id = await postPuzzle(1);
+    const t = at('2026-11-01', 14).getTime();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(t);
+      await init(headers, 'again', id);
+      vi.setSystemTime(t + 3_600_000);
+      const hSetNX = vi.spyOn(redis, 'hSetNX');
+      const zAdd = vi.spyOn(redis, 'zAdd');
+      await init(headers, 'again', id);
+      expect(hSetNX).not.toHaveBeenCalled();
+      expect(zAdd).not.toHaveBeenCalled();
+      expect(await redis.zScore(keys.knownUsers, 'again')).toBe(t);
+      expect(await redis.hGet(keys.attempts(id), 't0:again')).toBe(String(t));
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
+  });
+
+  test('a feed card view does not start the clock; opening the puzzle does', async ({
+    headers,
+  }) => {
+    const id = await postPuzzle(1);
+    const t = at('2026-11-01', 14).getTime();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(t);
+      await init(headers, 'feed', id, false); // card scrolled past in the feed
+      expect(await redis.hGet(keys.attempts(id), 't0:feed')).toBeUndefined();
+      vi.setSystemTime(t + 60_000);
+      await init(headers, 'feed', id); // tapped open a minute later
+      vi.setSystemTime(t + 65_000);
+      await move(headers, 'feed', id, ['d2d8']);
+      expect(await redis.hGet(keys.attempts(id), 't0:feed')).toBe(
+        String(t + 60_000)
+      );
+      expect(await redis.hGet(keys.attempts(id), 'tm:feed')).toBe('5000');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

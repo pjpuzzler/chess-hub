@@ -2,9 +2,18 @@
 // src/server/data/anarchy-puzzles.json (themed weekday buckets for the
 // Anarchy style) from the Lichess puzzle database (CC0).
 // Run: node --experimental-strip-types tools/build-puzzles.ts [path/to/lichess_db_puzzle.csv.zst]
+//   --anarchy-only        keep puzzles.json as it is
+//   --rebuild=a,b         rebuild these anarchy buckets (others already in the
+//                         file are kept: live installs index into them)
 import { spawn, execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  statSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { Chess, type Move, type Square } from 'chess.js';
@@ -118,6 +127,8 @@ const ANARCHY_MIN_POPULARITY = 85;
 const ANARCHY_MIN_PLAYS = 500;
 const ANARCHY_MAX_RD = 80;
 
+const VALUE: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+
 type Replay = { game: Chess; moves: Move[]; doubleCheck: boolean[] };
 
 // Replays a puzzle, recording for each ply whether it gave double check.
@@ -181,19 +192,23 @@ type AnarchySpec = {
   minRating: number;
   maxRating: number;
   preferMaxRating: number; // ratings at or below this are picked first
+  count?: number; // default ANARCHY_PER_BUCKET
   plies: [number, number];
   check: (r: Replay) => boolean; // the bucket's defining property
 };
 
 const ANARCHY: AnarchySpec[] = [
   {
+    // Three days a week, so a bigger bucket. En passant anywhere in the
+    // solution, not just the first move, so the theme does not give it away.
     name: 'enPassant',
     tag: 'enPassant',
     minRating: 0,
     maxRating: 3500,
-    preferMaxRating: 1700,
+    preferMaxRating: 1900,
+    count: 400,
     plies: [2, 10],
-    check: (r) => r.moves[1]!.isEnPassant(),
+    check: (r) => solverPlies(r.moves).some((m) => m.isEnPassant()),
   },
   {
     name: 'knightBoost',
@@ -214,18 +229,6 @@ const ANARCHY: AnarchySpec[] = [
     check: (r) => solverPlies(r.doubleCheck).some(Boolean),
   },
   {
-    name: 'castling',
-    tag: 'castling',
-    minRating: 0,
-    maxRating: 3500,
-    preferMaxRating: 3500,
-    plies: [2, 10],
-    check: (r) =>
-      solverPlies(r.moves).some(
-        (m) => m.isKingsideCastle() || m.isQueensideCastle()
-      ),
-  },
-  {
     name: 'smothered',
     tag: 'smotheredMate',
     minRating: 0,
@@ -235,22 +238,23 @@ const ANARCHY: AnarchySpec[] = [
     check: isSmothered,
   },
   {
-    name: 'easyMate',
-    tag: 'mateIn1',
+    // The solver's first move puts a rook where the defence takes it, and it
+    // took at most a pawn or minor piece on the way.
+    name: 'rookSac',
+    tag: 'sacrifice',
     minRating: 0,
-    maxRating: 999,
-    preferMaxRating: 999,
-    plies: [2, 2],
-    check: (r) => r.game.isCheckmate(),
-  },
-  {
-    name: 'hard',
-    tag: null,
-    minRating: 1900,
-    maxRating: 2300,
-    preferMaxRating: 2300,
-    plies: [MIN_PLIES, MAX_PLIES],
-    check: () => true,
+    maxRating: 3500,
+    preferMaxRating: 2000,
+    plies: [4, 10],
+    check: (r) => {
+      const [, sac, reply] = r.moves;
+      return (
+        sac?.piece === 'r' &&
+        VALUE[sac.captured ?? 'p']! < VALUE.r! &&
+        reply?.to === sac.to &&
+        reply.captured === 'r'
+      );
+    },
   },
 ];
 
@@ -282,7 +286,15 @@ function validate(fen: string, moves: string[]): boolean {
 }
 
 async function main() {
-  const archive = await ensureArchive(process.argv[2]);
+  const args = process.argv.slice(2);
+  const anarchyOnly = args.includes('--anarchy-only');
+  const rebuild = new Set(
+    args
+      .find((a) => a.startsWith('--rebuild='))
+      ?.slice('--rebuild='.length)
+      .split(',') ?? []
+  );
+  const archive = await ensureArchive(args.find((a) => !a.startsWith('--')));
   const zstd = spawn(
     existsSync('/opt/homebrew/bin/zstd') ? '/opt/homebrew/bin/zstd' : 'zstd',
     ['-dc', archive],
@@ -394,24 +406,50 @@ async function main() {
   console.log(`invalid dropped: ${invalid}`);
 
   const date = new Date().toISOString().slice(0, 10);
-  const json = {
+  const previous = anarchyOnly
+    ? (JSON.parse(readFileSync(OUT, 'utf8')) as Record<string, Row[]> & {
+        source: string;
+      })
+    : null;
+  if (previous) {
+    out.hard = previous.hard;
+    console.log('classic: kept puzzles.json');
+  }
+  const json = previous ?? {
     version: 1,
     source: `Lichess puzzle database (CC0), ${date}`,
     easy: out.easy,
     medium: out.medium,
     hard: out.hard,
   };
-  mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, JSON.stringify(json) + '\n');
-  console.log(`wrote ${OUT} (${statSync(OUT).size} bytes)`);
+  if (!previous) {
+    mkdirSync(dirname(OUT), { recursive: true });
+    writeFileSync(OUT, JSON.stringify(json) + '\n');
+    console.log(`wrote ${OUT} (${statSync(OUT).size} bytes)`);
+  }
 
   // Anarchy buckets: own RNG so the classic output above is unaffected.
   const arand = rng(ANARCHY_SEED);
   // Excluded ids: the classic hard bucket, then anything an earlier anarchy
   // bucket took, so no puzzle appears twice.
   const used = new Set(out.hard!.map((r) => r[0]));
+  const existing: Record<string, Row[]> = existsSync(ANARCHY_OUT)
+    ? (
+        JSON.parse(readFileSync(ANARCHY_OUT, 'utf8')) as {
+          buckets: Record<string, Row[]>;
+        }
+      ).buckets
+    : {};
   const anarchy: Record<string, Row[]> = {};
+  const kept = ANARCHY.filter((a) => existing[a.name] && !rebuild.has(a.name));
+  for (const a of kept) {
+    anarchy[a.name] = existing[a.name]!;
+    for (const r of existing[a.name]!) used.add(r[0]);
+    console.log(`anarchy ${a.name}: kept ${existing[a.name]!.length}`);
+  }
   for (const a of ANARCHY) {
+    if (kept.includes(a)) continue;
+    const count = a.count ?? ANARCHY_PER_BUCKET;
     const pool = anarchyPools[a.name]!.filter((c) => !used.has(c.row[0]));
     const preferred = shuffle(
       pool.filter((c) => c.row[3] <= a.preferMaxRating),
@@ -423,14 +461,12 @@ async function main() {
     );
     // Same 30% mate cap as classic for the any-theme bucket.
     const mateCap =
-      a.tag === null
-        ? Math.floor(ANARCHY_PER_BUCKET * MAX_MATE_SHARE)
-        : Infinity;
+      a.tag === null ? Math.floor(count * MAX_MATE_SHARE) : Infinity;
     let mates = 0;
     let failed = 0;
     const picked: Row[] = [];
     for (const c of [...preferred, ...rest]) {
-      if (picked.length >= ANARCHY_PER_BUCKET) break;
+      if (picked.length >= count) break;
       const isMate = c.themes.includes('mate');
       if (isMate && mates >= mateCap) continue;
       const r = replay(c.row[1], c.row[2].split(' '));
@@ -446,10 +482,20 @@ async function main() {
     console.log(
       `anarchy ${a.name}: pool ${pool.length}, preferred ${preferred.length}, picked ${picked.length}, failed check ${failed}`
     );
+    if (a.name === 'enPassant')
+      console.log(
+        `  en passant on the first move: ${picked.filter((row) => replay(row[1], row[2].split(' '))?.moves[1]?.isEnPassant()).length}`
+      );
   }
   writeFileSync(
     ANARCHY_OUT,
-    JSON.stringify({ version: 1, source: json.source, buckets: anarchy }) + '\n'
+    JSON.stringify({
+      version: 1,
+      source: json.source,
+      buckets: Object.fromEntries(
+        ANARCHY.map((a) => [a.name, anarchy[a.name]])
+      ),
+    }) + '\n'
   );
   console.log(`wrote ${ANARCHY_OUT} (${statSync(ANARCHY_OUT).size} bytes)`);
 }

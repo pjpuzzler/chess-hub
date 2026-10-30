@@ -37,14 +37,14 @@ Selection (see `tools/build-elo-games.ts`):
 
 ## anarchy-puzzles.json
 
-Format: `{ version, source, buckets: { enPassant, knightBoost, doubleCheck, castling, smothered, easyMate, hard } }`, same Row format, 150 per bucket, shuffled with its own seed (classic output is unaffected).
+Format: `{ version, source, buckets: { enPassant, knightBoost, doubleCheck, smothered, rookSac } }`, same Row format, shuffled with their own seed. Buckets are append-only in spirit: live installs index into them by cursor, so a rebuild keeps every bucket already in the file unless named in `--rebuild=`, and `--anarchy-only` leaves `puzzles.json` untouched.
 
-Shared filters: Popularity >= 85, NbPlays >= 500, RatingDeviation <= 80, 2 to 10 plies (hard: 4 to 10). No puzzle appears in two buckets or in classic `hard`. Each bucket's defining property is checked with chess.js, not just the Lichess tag:
+Shared filters: Popularity >= 85, NbPlays >= 500, RatingDeviation <= 80, 2 to 10 plies. No puzzle appears in two buckets or in classic `hard`. Each bucket's defining property is checked with chess.js, not just the Lichess tag:
 
-- enPassant: tag `enPassant` and the solver's first move (`moves[1]`) is an en passant capture; ratings <= 1700 picked first
-- knightBoost: tag `underPromotion` and a solver move promotes to a knight
-- doubleCheck: tag `doubleCheck` and a solver move gives check from two pieces; ratings <= 1700 picked first
-- castling: tag `castling` and a solver move castles
-- smothered: tag `smotheredMate`, final move is a knight mate and every square next to the king is the board edge or the king's own piece
-- easyMate: tag `mateIn1`, rating < 1000, the move mates
-- hard: rating 1900-2300, any theme, `mate` capped at 30%
+- enPassant (400; 3 days a week): tag `enPassant` and some solver move is an en passant capture (about a third on the first move); ratings <= 1900 picked first
+- knightBoost (150): tag `underPromotion` and a solver move promotes to a knight
+- doubleCheck (150): tag `doubleCheck` and a solver move gives check from two pieces; ratings <= 1700 picked first
+- smothered (150): tag `smotheredMate`, final move is a knight mate and every square next to the king is the board edge or the king's own piece
+- rookSac (150): tag `sacrifice`, 4+ plies, the solver's first move is a rook move (taking at most a minor piece) and the reply captures that rook; ratings <= 2000 picked first
+
+The 2026-10-29 build had castling, easyMate and hard buckets; they were dropped 2026-10-30 as not fitting the sub. enPassant was rebuilt then from the 2026-10-30 database (2,602 candidates); the other three kept buckets are unchanged.

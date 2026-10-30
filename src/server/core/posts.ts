@@ -8,13 +8,25 @@ import { parseGame } from '../../shared/chess/review';
 import { fetchLichessPgn, lichessGameId, looksLikeLichessUrl } from './lichess';
 import { touchUser } from './privacy';
 import { isModerator, memberPostsAllowed } from './settings';
-import { FEED_STYLES, bump, cleanText, keys, putPost, toInt } from './store';
+import {
+  FEED_STYLES,
+  bump,
+  cleanText,
+  clip,
+  keys,
+  putPost,
+  toInt,
+} from './store';
 
 export const MAX_PGN_CHARS = 100_000;
 const MAX_TITLE = 300;
 export const MAX_PROMPT = 200;
 export const MAX_CAPTION = 500;
 export const MAX_CLOSE_HOURS = 168;
+// Feed card copies (postData is capped at 2 KB): longer text is cut there
+// only; the card's text lines clip long text anyway.
+const CARD_NAME = 40;
+const CARD_CAPTION = 140;
 export const MEMBER_POSTS_PER_DAY = 5;
 const UNLIMITED = 99;
 export const GENERIC = 'Something went wrong. Try again.';
@@ -36,15 +48,20 @@ const dayKey = (username: string, now: Date) =>
 
 export const createOptions = async (
   username: string | null,
-  isMod: boolean,
+  // May be a pending check: the member reads run alongside it.
+  isMod: boolean | Promise<boolean>,
   now: Date = new Date()
 ): Promise<CreateOptions> => {
   if (!username)
     return { review: false, elo: false, poll: false, remainingToday: 0 };
-  if (isMod)
+  const [mod, allowed, usedRaw] = await Promise.all([
+    isMod,
+    memberPostsAllowed(),
+    redis.get(dayKey(username, now)),
+  ]);
+  if (mod)
     return { review: true, elo: true, poll: true, remainingToday: UNLIMITED };
-  const allowed = await memberPostsAllowed();
-  const used = toInt(await redis.get(dayKey(username, now)));
+  const used = toInt(usedRaw);
   const remainingToday = allowed ? Math.max(0, MEMBER_POSTS_PER_DAY - used) : 0;
   const can = remainingToday > 0;
   return { review: can, elo: can, poll: can, remainingToday };
@@ -186,14 +203,26 @@ export const createPollPost = async (
 
   const toPlay = `${sideLabel(parsed.turn)} to play`;
   const prompt = typed || toPlay;
-  const title = `${typed || "What's the move?"} · ${toPlay}`;
+  // The in-app form pre-fills "White to play": don't repeat it in the title.
+  const question = typed.replace(/[.!?\s]+$/, '');
+  const title =
+    !question || question.toLowerCase() === toPlay.toLowerCase()
+      ? `What's the move? · ${toPlay}`
+      : /\b(white|black) to (play|move)\b/i.test(question)
+        ? typed
+        : `${typed} · ${toPlay}`;
   const orientation =
     input.orientation === 'auto' ? parsed.turn : input.orientation;
   const closesAt =
     input.closeHours > 0
       ? now.getTime() + Math.round(input.closeHours * 3_600_000)
       : null;
-  const postData: PostData = { kind: 'poll', fen: parsed.fen, orientation };
+  const postData: PostData = {
+    kind: 'poll',
+    fen: parsed.fen,
+    orientation,
+    card: { kind: 'poll', prompt },
+  };
   const fallback = `${title}. FEN: ${parsed.fen}`;
 
   let res: CreateResult;
@@ -241,6 +270,14 @@ export const createReviewPost = async (
       kind: 'review',
       fen: game.fens[game.fens.length - 1] ?? game.startFen,
       orientation: 'white',
+      card: {
+        kind: 'review',
+        white: clip(game.white, CARD_NAME),
+        black: clip(game.black, CARD_NAME),
+        result: game.result,
+        caption: clip(caption, CARD_CAPTION),
+        game: null,
+      },
     },
     fallback: caption ? `${title}. ${caption}` : title,
     ugc: caption ? `${title}\n${caption}` : title,

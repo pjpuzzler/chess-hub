@@ -72,6 +72,7 @@ describe('starting and ending', () => {
     expect(mocks.reddit.linksAndComments.getPostData(postId)).toMatchObject({
       kind: 'game',
       orientation: 'white',
+      card: { kind: 'game', gameNumber: 1, moveNumber: 1 },
     });
     expect(await view(headers, 'a', postId)).toMatchObject({
       kind: 'game',
@@ -271,6 +272,7 @@ describe('game end', () => {
   test("checkmate: the next post is a review post of the whole game; then it's over", async ({
     headers,
   }) => {
+    const submit = vi.spyOn(reddit, 'submitCustomPost');
     await started();
     const line = ['f2f3', 'e7e5', 'g2g4', 'd8h4'];
     let last;
@@ -293,6 +295,24 @@ describe('game end', () => {
     expect(review).toMatchObject({ kind: 'review', analysis: null });
     if (review.kind === 'review') expect(review.pgn).toContain('Qh4#');
     expect(await readState()).toMatchObject({ openPostId: null, moves: line });
+    expect(submit.mock.calls[4]?.[0].postData).toMatchObject({
+      kind: 'review',
+      card: {
+        kind: 'review',
+        white: 'r/testsub',
+        black: 'r/testsub',
+        result: '0-1',
+        caption: 'Black wins by checkmate in 2.',
+        game: 1,
+      },
+    });
+    expect(submit.mock.calls[3]?.[0].postData).toMatchObject({
+      card: { kind: 'game', gameNumber: 1, moveNumber: 2 },
+    });
+    // Move posts and the result post all get the community game's card.
+    expect(submit).toHaveBeenCalledTimes(5);
+    for (const [opts] of submit.mock.calls)
+      expect(opts.styles).toEqual({ heightPixels: 512 });
     expect((await advanceGame(day(9))).status).toBe('none');
     // A new game can start.
     asMod();

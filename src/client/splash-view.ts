@@ -1,9 +1,9 @@
 // Inline splash: what to say (pure) and how to draw it (plain DOM).
 // All user-provided text (prompts, captions, player names, usernames) goes
 // through textContent only; nothing here builds HTML from strings.
-import type { InitResponse, PostData, PostKind } from '../shared/api';
+import type { InitResponse, PostCard, PostData, PostKind } from '../shared/api';
 import { surname } from '../shared/chess/names';
-import { communityReview, gameLabel, toPlay } from './lib/community';
+import { communityReview, eloLabel, gameLabel, toPlay } from './lib/community';
 import {
   piecesFromFen,
   sideToMove,
@@ -20,7 +20,7 @@ import {
 export type Info = {
   label: string; // "Daily Puzzle #42"
   title: string | null; // null = still loading
-  meta: string;
+  meta: string | null; // null = still loading (a placeholder line)
   cta: string;
   done: boolean; // viewer already took part (quieter button)
   arrow: string | null; // UCI move to draw on the board
@@ -50,6 +50,131 @@ export function loadingInfo(kind: PostKind): Info {
     done: false,
     arrow: null,
   };
+}
+
+const KINDS: PostKind[] = ['puzzle', 'poll', 'review', 'elo', 'game'];
+const isKind = (v: unknown): v is PostKind => KINDS.some((k) => k === v);
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+const str = (r: Record<string, unknown>, k: string): string | null => {
+  const v = r[k];
+  return typeof v === 'string' ? v : null;
+};
+const int = (r: Record<string, unknown>, k: string): number | null => {
+  const v = r[k];
+  return typeof v === 'number' && Number.isInteger(v) ? v : null;
+};
+
+/** The card's fixed text from postData, or null if missing or malformed. */
+function readCard(raw: unknown, kind: PostKind): PostCard | null {
+  if (!isRecord(raw) || raw['kind'] !== kind) return null;
+  switch (kind) {
+    case 'puzzle': {
+      const number = int(raw, 'number');
+      const rating = int(raw, 'rating');
+      const tagline = str(raw, 'tagline');
+      if (number === null || rating === null) return null;
+      return {
+        kind,
+        number,
+        rating,
+        tagline,
+        anarchy: raw['anarchy'] === true,
+      };
+    }
+    case 'poll': {
+      const prompt = str(raw, 'prompt');
+      return prompt === null ? null : { kind, prompt };
+    }
+    case 'review': {
+      const white = str(raw, 'white');
+      const black = str(raw, 'black');
+      const result = str(raw, 'result');
+      if (white === null || black === null || result === null) return null;
+      return {
+        kind,
+        white,
+        black,
+        result,
+        caption: str(raw, 'caption') ?? '',
+        game: int(raw, 'game'),
+      };
+    }
+    case 'elo': {
+      const number = int(raw, 'number');
+      const timeControl = str(raw, 'timeControl');
+      if (number === null || timeControl === null) return null;
+      return { kind, number, timeControl };
+    }
+    case 'game': {
+      const gameNumber = int(raw, 'gameNumber');
+      const moveNumber = int(raw, 'moveNumber');
+      if (gameNumber === null || moveNumber === null) return null;
+      return { kind, gameNumber, moveNumber };
+    }
+  }
+}
+
+/** Reddit's postData for this post, checked (it is plain JSON). */
+export function readPostData(raw: unknown): PostData | null {
+  if (!isRecord(raw)) return null;
+  const { kind, fen, orientation } = raw;
+  if (!isKind(kind) || typeof fen !== 'string') return null;
+  const card = readCard(raw['card'], kind);
+  return {
+    kind,
+    fen,
+    orientation: orientation === 'black' ? 'black' : 'white',
+    ...(card ? { card } : {}),
+  };
+}
+
+/**
+ * The card before /api/init returns, from the post's fixed text: what a
+ * viewer who has not taken part sees, with per-viewer and live parts (votes)
+ * as placeholders. Posts without fixed text show placeholders only.
+ */
+export function infoFromPostData(postData: PostData | null): Info {
+  const card = postData?.card;
+  if (!postData || !card) return loadingInfo(postData?.kind ?? 'puzzle');
+  const side = postData.orientation === 'white' ? 'White' : 'Black';
+  const base = { cta: CTA[card.kind], done: false, arrow: null };
+  switch (card.kind) {
+    case 'puzzle':
+      return {
+        ...base,
+        label: `${card.anarchy ? 'Daily Anarchy Puzzle' : 'Daily Puzzle'} #${card.number}`,
+        title: `${side} to play`,
+        meta: card.tagline ?? `Rated ${card.rating}`,
+      };
+    case 'poll':
+      return { ...base, label: LABEL.poll, title: card.prompt, meta: null };
+    case 'review':
+      return {
+        ...base,
+        label: LABEL.review,
+        title:
+          card.game !== null
+            ? gameLabel(card.game)
+            : `${surname(card.white)} vs ${surname(card.black)}`,
+        meta: card.caption ? `${card.result} · ${card.caption}` : card.result,
+      };
+    case 'elo':
+      return {
+        ...base,
+        label: eloLabel(card.number),
+        title: 'How strong are they?',
+        meta: timeControlLabel(card.timeControl),
+      };
+    case 'game':
+      return {
+        ...base,
+        label: gameLabel(card.gameNumber),
+        title: toPlay(postData.orientation),
+        meta: null,
+      };
+  }
 }
 
 export type Accuracy = { white: number | null; black: number | null };
@@ -174,7 +299,7 @@ export function infoFromInit(
   }
   const guessed = post.myGuess !== null && post.reveal !== null;
   return {
-    label: `Guess the Elo #${post.number}`,
+    label: eloLabel(post.number),
     title: guessed
       ? `It was ${post.reveal?.average ?? '?'}`
       : 'How strong are they?',
@@ -199,6 +324,9 @@ function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
+// Arrow head size in squares.
+const HEAD_LEN = 0.6;
+const HEAD_WIDTH = 0.7;
 
 function arrowSvg(uci: string, orientation: PieceColor): SVGSVGElement | null {
   const m = /^([a-h])([1-8])([a-h])([1-8])/.exec(uci);
@@ -217,29 +345,36 @@ function arrowSvg(uci: string, orientation: PieceColor): SVGSVGElement | null {
   svg.setAttribute('viewBox', '0 0 8 8');
   svg.setAttribute('class', 'arrow');
   svg.setAttribute('aria-hidden', 'true');
-  const defs = document.createElementNS(SVG, 'defs');
-  const marker = document.createElementNS(SVG, 'marker');
-  marker.setAttribute('id', 'ah');
-  marker.setAttribute('orient', 'auto');
-  marker.setAttribute('markerWidth', '4');
-  marker.setAttribute('markerHeight', '4');
-  marker.setAttribute('refX', '2');
-  marker.setAttribute('refY', '2');
-  const head = document.createElementNS(SVG, 'path');
-  head.setAttribute('d', 'M0,0 L4,2 L0,4 z');
-  marker.append(head);
-  defs.append(marker);
-  // Stop short of the centre so the head lands on the square.
+  // Shaft from the start square's centre to the head's base, head tip at the
+  // target's centre. One translucent group, so where they meet is not
+  // darker.
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const baseX = b.x - ux * HEAD_LEN;
+  const baseY = b.y - uy * HEAD_LEN;
+  const g = document.createElementNS(SVG, 'g');
   const line = document.createElementNS(SVG, 'line');
   line.setAttribute('x1', String(a.x));
   line.setAttribute('y1', String(a.y));
-  line.setAttribute('x2', String(b.x - (dx / len) * 0.35));
-  line.setAttribute('y2', String(b.y - (dy / len) * 0.35));
-  line.setAttribute('marker-end', 'url(#ah)');
-  svg.append(defs, line);
+  line.setAttribute('x2', String(baseX));
+  line.setAttribute('y2', String(baseY));
+  const head = document.createElementNS(SVG, 'polygon');
+  const w = HEAD_WIDTH / 2;
+  head.setAttribute(
+    'points',
+    [
+      [b.x, b.y],
+      [baseX - uy * w, baseY + ux * w],
+      [baseX + uy * w, baseY - ux * w],
+    ]
+      .map((p) => p.join(','))
+      .join(' ')
+  );
+  g.append(line, head);
+  svg.append(g);
   return svg;
 }
 
@@ -284,7 +419,12 @@ export function renderInfo(
   box.append(el('p', 'eyebrow', info.label));
   if (info.title !== null) {
     box.append(el('h1', 'title', info.title));
-    if (info.meta) box.append(el('p', 'meta', info.meta));
+    if (info.meta === null) {
+      // Same line box as the text that replaces it, so nothing moves.
+      const meta = el('p', 'meta');
+      meta.append(el('span', 'skeleton text'));
+      box.append(meta);
+    } else if (info.meta) box.append(el('p', 'meta', info.meta));
   }
   if (error) box.append(el('p', 'meta', error));
   const cta = el('button', `cta ${info.done ? 'done' : ''}`, info.cta);

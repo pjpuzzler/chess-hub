@@ -58,12 +58,24 @@ function parseJson<T>(text: string): T | null {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+  return read<T>(await fetch(url, init));
+}
+
+async function read<T>(res: Response): Promise<T> {
   const data = parseJson<T>(await res.text());
   if (!res.ok || data === null) {
     throw new ApiError(errorMessage(data, res.status), res.status);
   }
   return data;
+}
+
+// The /api/init request public/boot.js started before the bundle loaded,
+// taken once (later calls want fresh data).
+async function earlyInit(): Promise<Response | null> {
+  const early: unknown = Reflect.get(globalThis, 'chessHubInit');
+  Reflect.deleteProperty(globalThis, 'chessHubInit');
+  const res: unknown = early instanceof Promise ? await early : null;
+  return res instanceof Response ? res : null;
 }
 
 const post = (body: unknown): RequestInit => ({
@@ -73,7 +85,17 @@ const post = (body: unknown): RequestInit => ({
 });
 
 export const api = {
-  init: () => request<InitResponse>('/api/init'),
+  // Expanded view. open=1 starts a puzzle's solve clock on the server.
+  init: async () => {
+    const res = await earlyInit();
+    if (res?.ok) {
+      const data = await read<InitResponse>(res).catch(() => null);
+      if (data) return data;
+    }
+    return request<InitResponse>('/api/init?open=1');
+  },
+  // Feed card: same data, but seeing the card is not opening the puzzle.
+  cardInit: () => request<InitResponse>('/api/init'),
   puzzleMove: (moves: string[]) =>
     request<PuzzleMoveResponse>('/api/puzzle/move', post({ moves })),
   puzzleHint: (moves: string[]) =>

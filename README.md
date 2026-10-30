@@ -1,7 +1,9 @@
 # Chess Hub
 
-Daily puzzles, Guess the Elo, move polls and game reviews, right inside your subreddit's posts.
-Free for every community, with no accounts or extra sites.
+Daily puzzles, Guess the Elo, move polls, game reviews and a community game, right inside your
+subreddit's posts. Free for every community, with no accounts or extra sites.
+
+![Chess Hub: the Daily Puzzle, a community game vote, a move poll and a game review](https://raw.githubusercontent.com/pjpuzzler/chess-hub/main/docs/screens.png)
 
 ## What it adds
 
@@ -14,6 +16,9 @@ Free for every community, with no accounts or extra sites.
   their own games ("Guess my Elo").
 - **What's the move?** Anyone can set up a position and ask the community. Members vote by playing
   a move, results stay hidden until you vote, then Stockfish weighs in.
+- **Community game.** The whole subreddit plays one game together, a move a day. Everyone votes
+  by playing a move, the most popular one is played, and the next post goes up. A moderator
+  starts it.
 - **Game Review.** Paste a game (PGN or a Lichess link) for a full review: accuracy for both
   players, inaccuracies, mistakes, blunders and brilliant moves, a win-chance graph and the
   engine's best move at every turn.
@@ -21,6 +26,10 @@ Free for every community, with no accounts or extra sites.
   lines. The engine runs on the viewer's device, so it costs your community nothing.
 - **r/AnarchyChess edition.** In r/AnarchyChess only, the daily puzzle rotates the sub's favourite
   special moves. Holy hell.
+
+In the feed, each post is a compact card with the position and one tap to play:
+
+![Feed cards for a Daily Puzzle, a Game Review and Guess the Elo](https://raw.githubusercontent.com/pjpuzzler/chess-hub/main/docs/feed.png)
 
 ## For moderators
 
@@ -61,7 +70,7 @@ got there first) and the next position is posted. A day with no votes keeps the 
 When the game ends, the next post shows the result with a full game review. One game runs at a
 time; a moderator can stop it with "End community game".
 
-In r/AnarchyChess the daily puzzle follows the sub's memes (en passant Mondays and so on).
+In r/AnarchyChess the daily puzzle follows the sub's memes (en passant three days a week, plus knight boosts, double checks, smothered mates and rook sacrifices).
 
 ## Privacy
 

@@ -9,6 +9,7 @@ import type {
   InitResponse,
   LeaderboardEntry,
   PollResult,
+  PostCard,
   PostData,
   PuzzleMe,
   PuzzleView,
@@ -332,7 +333,7 @@ export const FIXTURES: Record<string, Fixture> = {
     label: 'Puzzle, anarchy',
     postData: puzzlePostData,
     username: 'kibitzer',
-    init: init(puzzle(ME_FRESH, false, 'Brick rule in effect'), 'kibitzer', {
+    init: init(puzzle(ME_FRESH, false, 'Google en passant'), 'kibitzer', {
       anarchy: true,
     }),
     secret: puzzleSecret,
@@ -596,3 +597,46 @@ export const LEADERBOARD: LeaderboardEntry[] = [
   'il_vaticano',
   'kibitzer',
 ].map((username, i) => ({ rank: i + 1, username, value: 0 }));
+
+/**
+ * The feed card's fixed text, as the server puts it in postData when it makes
+ * the post (derived from the fixture's init so the two always agree).
+ */
+export function cardFor(init: InitResponse): PostCard {
+  const post = init.post;
+  switch (post.kind) {
+    case 'puzzle':
+      return {
+        kind: 'puzzle',
+        number: post.number,
+        rating: post.puzzle.rating,
+        tagline: post.tagline,
+        anarchy: init.flags.anarchy,
+      };
+    case 'poll':
+      return { kind: 'poll', prompt: post.prompt };
+    case 'review': {
+      const game = /community game(?: #(\d+))?/.exec(post.pgn);
+      return {
+        kind: 'review',
+        white: post.white,
+        black: post.black,
+        result: post.result,
+        caption: post.caption,
+        game: post.author === null && game ? Number(game[1] ?? 1) : null,
+      };
+    }
+    case 'elo':
+      return {
+        kind: 'elo',
+        number: post.number,
+        timeControl: post.game.timeControl,
+      };
+    case 'game':
+      return {
+        kind: 'game',
+        gameNumber: post.gameNumber,
+        moveNumber: post.moveNumber,
+      };
+  }
+}

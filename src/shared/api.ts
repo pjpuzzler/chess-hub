@@ -10,7 +10,32 @@ export type PostData = {
   fen: string;
   // Board orientation: the side the reader plays / is asked about.
   orientation: 'white' | 'black';
+  // The card's fixed text, so it shows before /api/init returns. Absent on
+  // posts made before it existed (the card shows placeholders until init).
+  card?: PostCard;
 };
+
+// Only what is fixed when the post is made; votes, results and the viewer's
+// own state still come from /api/init. Same `kind` as the PostData.
+export type PostCard =
+  | {
+      kind: 'puzzle';
+      number: number;
+      rating: number;
+      tagline: string | null;
+      anarchy: boolean; // the subreddit's style (label "Daily Anarchy Puzzle")
+    }
+  | { kind: 'poll'; prompt: string }
+  | {
+      kind: 'review';
+      white: string;
+      black: string;
+      result: string;
+      caption: string; // may be cut short (postData is small)
+      game: number | null; // a community game's result post: its number
+    }
+  | { kind: 'elo'; number: number; timeControl: string }
+  | { kind: 'game'; gameNumber: number; moveNumber: number };
 
 // The solution is never sent before the viewer finishes or gives up; the
 // server checks each move (anti-cheat).
@@ -55,7 +80,7 @@ export type PuzzleView = {
   stats: PuzzleStats;
   me: PuzzleMe | null; // null when logged out
   nextPuzzleAt: number | null; // epoch ms of the next scheduled daily puzzle
-  // Anarchy style only: the day's one-line framing, e.g. "Brick rule in effect"
+  // Anarchy style only: the day's one-line framing, e.g. "Google en passant"
   tagline: string | null;
   // Newest curated Guess the Elo post in this sub (for a quiet "This week:
   // Guess the Elo #N" link); null if there is none or the sub turned it off.

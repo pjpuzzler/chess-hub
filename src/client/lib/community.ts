@@ -9,6 +9,13 @@ export function gameLabel(gameNumber: number): string {
   return `Community game${gameNumber > 1 ? ` #${gameNumber}` : ''}`;
 }
 
+/** "Guess the Elo #N" for the curated series; members' posts (number 0)
+ * are "Guess my Elo". */
+export function eloLabel(number: number, short = false): string {
+  if (number < 1) return 'Guess my Elo';
+  return short ? `Elo #${number}` : `Guess the Elo #${number}`;
+}
+
 export function toPlay(turn: 'white' | 'black'): string {
   return `${side(turn)} to play`;
 }

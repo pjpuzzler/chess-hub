@@ -1,7 +1,7 @@
 import { createDevvitTest } from '@devvit/test/server/vitest';
 import { reddit, redis } from '@devvit/web/server';
 import { describe, expect, vi } from 'vitest';
-import { postDailyPuzzle, solverView } from './core/daily';
+import { postDailyPuzzle, postEloGame, solverView } from './core/daily';
 import { rowToPuzzle, type PuzzleSet } from './core/puzzles';
 import { bucketFor } from './core/settings';
 import { getPost, keys } from './core/store';
@@ -51,6 +51,7 @@ describe('postDailyPuzzle', () => {
       kind: 'puzzle',
       fen: '6k1/5ppp/p7/8/8/8/5PPP/3R2K1 w - - 0 2',
       orientation: 'white',
+      card: expect.objectContaining({ kind: 'puzzle', number: 1 }),
     });
     expect(await redis.get(keys.latest('daily'))).toBe('1');
   });
@@ -122,6 +123,25 @@ describe('postDailyPuzzle', () => {
     expect(submit).toHaveBeenCalledWith(
       expect.objectContaining({ styles: { heightPixels: 264 } })
     );
+  });
+
+  test('posts carry the feed card text (shown before /api/init)', async () => {
+    const submit = vi.spyOn(reddit, 'submitCustomPost');
+    await postDailyPuzzle(at('2026-10-29', 13), SET);
+    const elo = [['1. e4 e5 2. Nf3 Nc6 1-0', '180+2', '1-0', 1510, 1490]];
+    await postEloGame(at('2026-10-31', 13), elo);
+    const [puzzle, guess] = submit.mock.calls.map(([o]) => o.postData);
+    expect(puzzle).toMatchObject({
+      kind: 'puzzle',
+      card: { kind: 'puzzle', number: 1, tagline: null, anarchy: false },
+    });
+    expect(puzzle?.['card']).toHaveProperty('rating', expect.any(Number));
+    expect(guess).toMatchObject({
+      card: { kind: 'elo', number: 1, timeControl: '180+2' },
+    });
+    // Well under Reddit's 2 KB postData limit.
+    for (const d of [puzzle, guess])
+      expect(JSON.stringify(d).length).toBeLessThan(600);
   });
 
   test('a failure after the post is created never releases the date or double-posts', async () => {

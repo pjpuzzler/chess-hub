@@ -19,6 +19,7 @@ import { getSettings } from './settings';
 import { expireClosedVotes, touchUser } from './privacy';
 import { GENERIC } from './posts';
 import {
+  GAME_FEED_STYLES,
   getPost,
   keys,
   parseJson,
@@ -124,12 +125,19 @@ const submitMovePost = async (gameNumber: number, moves: string[]) => {
   const turn = sideName(new Chess(fen).turn());
   const moveNumber = Math.floor(moves.length / 2) + 1;
   const title = `${label(gameNumber)} · Move ${moveNumber} · ${sideLabel(turn)} to play`;
-  const postData: PostData = { kind: 'game', fen, orientation: turn };
+  const postData: PostData = {
+    kind: 'game',
+    fen,
+    orientation: turn,
+    card: { kind: 'game', gameNumber, moveNumber },
+  };
   const post = await reddit.submitCustomPost({
     subredditName: context.subredditName,
     title,
     postData,
     textFallback: { text: `${title}. Vote for the next move. FEN: ${fen}` },
+
+    styles: GAME_FEED_STYLES,
   });
   return { postId: post.id, record: openRecord(gameNumber, moves) };
 };
@@ -165,8 +173,22 @@ const submitResultPost = async (gameNumber: number, moves: string[]) => {
   const post = await reddit.submitCustomPost({
     subredditName: context.subredditName,
     title,
-    postData: { kind: 'review', fen: fenAfter(moves), orientation: 'white' },
+    postData: {
+      kind: 'review',
+      fen: fenAfter(moves),
+      orientation: 'white',
+      card: {
+        kind: 'review',
+        white: sub,
+        black: sub,
+        result: outcome.result,
+        caption: `${summary}.`,
+        game: gameNumber,
+      },
+    },
     textFallback: { text: `${title}.` },
+
+    styles: GAME_FEED_STYLES,
   });
   return {
     postId: post.id,
@@ -528,14 +550,12 @@ export const buildGameView = async (
   post: StoredGamePost,
   username: string | null
 ): Promise<GameView> => {
-  const raw = username
-    ? await redis.hGet(keys.votes(postId), username)
-    : undefined;
+  const [raw, counts] = await Promise.all([
+    username ? redis.hGet(keys.votes(postId), username) : undefined,
+    post.finalCounts ?? getCounts(postId),
+  ]);
   const myVote = raw ? (decodeVote(raw)?.move ?? null) : null;
-  const results = tally(
-    post.fen,
-    post.finalCounts ?? (await getCounts(postId))
-  );
+  const results = tally(post.fen, counts);
   const chess = new Chess(post.fen);
   const win = post.winningMove ? checkMove(post.fen, post.winningMove) : null;
   const status = post.status === 'closing' ? 'open' : post.status;

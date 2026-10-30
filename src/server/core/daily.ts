@@ -56,12 +56,17 @@ export const solverView = (
   return { fen, side: sideName(new Chess(fen).turn()) };
 };
 
+// A date's value: the post id, `pending:<ms>` while a run posts, or
+// `deleted:<post id>` once a mod deleted that day's post. A deleted day stays
+// claimed so the hourly retry doesn't repost it; the mod menu can still post.
+export const DELETED = 'deleted:';
+
 export const todaysPostId = async (
   date: string,
   series: Series = 'daily'
 ): Promise<string | null> => {
   const v = await redis.hGet(keys.dates(series), date);
-  return v && !v.startsWith('pending:') ? v : null;
+  return v && !v.startsWith('pending:') && !v.startsWith(DELETED) ? v : null;
 };
 
 /** Claim `date` for this run. Stale claims from crashed runs can be taken over. */
@@ -206,7 +211,18 @@ export const postDailyPuzzle = async (
       const side = view.side === 'white' ? 'White' : 'Black';
       return {
         title: dailyTitle(number, view.side, date, anarchy),
-        postData: { kind: 'puzzle', fen: view.fen, orientation: view.side },
+        postData: {
+          kind: 'puzzle',
+          fen: view.fen,
+          orientation: view.side,
+          card: {
+            kind: 'puzzle',
+            number,
+            rating: puzzle.rating,
+            tagline: anarchy ? day.tagline : null,
+            anarchy: anarchyStyle,
+          },
+        },
         fallback: `Daily ${anarchy ? 'Anarchy ' : ''}Puzzle #${number}: ${side} to play. FEN: ${view.fen}`,
         flair: 'Daily Puzzle',
         cursorKey,
@@ -247,6 +263,7 @@ export const postEloGame = async (
           kind: 'elo',
           fen: game.fens[game.fens.length - 1] ?? game.startFen,
           orientation: 'white',
+          card: { kind: 'elo', number, timeControl: row.timeControl },
         },
         fallback:
           `Guess the Elo #${number}: guess the players' average rating. ${movetextOnly(game.pgn)}`.slice(
@@ -298,7 +315,11 @@ export const movetextOnly = (pgn: string): string =>
 export const nextPuzzleAt = async (
   now: Date = new Date()
 ): Promise<number | null> => {
-  const s = await getSettings();
+  // Today's post is read alongside the settings (unused if puzzles are off).
+  const [s, todays] = await Promise.all([
+    getSettings(),
+    redis.hGet(keys.dates('daily'), utcDate(now)),
+  ]);
   if (!s.dailyPuzzle) return null;
   const todayAt = Date.UTC(
     now.getUTCFullYear(),
@@ -306,7 +327,8 @@ export const nextPuzzleAt = async (
     now.getUTCDate(),
     s.postHourUtc
   );
-  if (await todaysPostId(utcDate(now))) return todayAt + 86_400_000;
+  // Posted (or deleted by a mod): tomorrow.
+  if (todays && !todays.startsWith('pending:')) return todayAt + 86_400_000;
   if (now.getTime() < todayAt) return todayAt;
   // Due but not posted yet: the next hourly run.
   const nextHour = new Date(now);
@@ -319,9 +341,12 @@ export const currentElo = async (): Promise<{
   postId: string;
   number: number;
 } | null> => {
-  const { elo } = await getSettings();
+  const [{ elo }, raw] = await Promise.all([
+    getSettings(),
+    redis.get(keys.latestPost('elo')),
+  ]);
   if (elo === 'off') return null;
-  const v = parseJson(await redis.get(keys.latestPost('elo')));
+  const v = parseJson(raw);
   if (typeof v !== 'object' || v === null) return null;
   const postId: unknown = Reflect.get(v, 'postId');
   const number: unknown = Reflect.get(v, 'number');

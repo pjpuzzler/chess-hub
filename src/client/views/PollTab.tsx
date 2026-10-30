@@ -223,9 +223,7 @@ export function PollTab({
   if (revealed && results) {
     // Everything inline: the top moves (yours marked), then Stockfish.
     const mine = results.find((r) => r.move === myVote);
-    summary = (
-      <VoteResults results={results} pcts={pcts} myVote={myVote} count={3} />
-    );
+    summary = <VoteResults results={results} pcts={pcts} myVote={myVote} />;
     const bestEval =
       reveal.status === 'done' && reveal.best
         ? reveal.evals.get(reveal.best)
@@ -310,7 +308,7 @@ export function PollTab({
         <VoteResults
           results={results}
           pcts={pcts}
-          count={2}
+          myVote={myVote}
           className="summary-text grow"
         />
         {reveal.status === 'done' ? (
@@ -370,6 +368,8 @@ export function PollTab({
         />
       }
       summary={summary}
+      // Results and the Stockfish verdict share the row.
+      single={revealed && results ? compact : summary}
       compact={compact}
       extra={extra}
       infoRows={2}

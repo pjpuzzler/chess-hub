@@ -23,7 +23,7 @@ import { EvalBar } from './components/EnginePanel';
 import { Screen } from './components/Screen';
 import { Button, Icon, NavButton, TextTabs, type Tab } from './components/ui';
 import { api } from './lib/api';
-import { communityReview, gameLabel } from './lib/community';
+import { communityReview, eloLabel, gameLabel } from './lib/community';
 import {
   buildLine,
   parsePgn,
@@ -183,7 +183,7 @@ function Shell({ init }: { init: InitResponse }) {
         { id: 'analyze', label: 'Analyze' }
       );
   } else {
-    titles = [`Guess the Elo #${post.number}`, `Elo #${post.number}`];
+    titles = [eloLabel(post.number), eloLabel(post.number, true)];
     leaderKinds = ['elo'];
     tabs.push({ id: 'main', label: 'Game' });
     if (unlocked) tabs.push({ id: 'analyze', label: 'Analyze' });

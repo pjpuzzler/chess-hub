@@ -145,13 +145,12 @@ export function GameTab({
       </Button>
     ) : null;
 
-  const resultsLine = (count: number, className = 'summary-text') =>
+  const resultsLine = (className = 'summary-text') =>
     results && results.length ? (
       <VoteResults
         results={results}
         pcts={pcts}
         myVote={myVote}
-        count={count}
         className={className}
       />
     ) : (
@@ -162,15 +161,22 @@ export function GameTab({
   let summary;
   let extra = null;
   let compact;
+  let single;
   if (view.status === 'ended') {
     top = 'The moderators ended this game';
-    summary = resultsLine(3);
+    summary = resultsLine();
     extra = <div className="info-row muted">{votes} · voting closed</div>;
     compact = <span className="muted">The moderators ended this game</span>;
   } else if (view.status === 'closed') {
     const san = view.winningMove?.san;
     top = san ? `${side} played ${san} · ${votes}` : votes;
-    summary = resultsLine(3);
+    summary = resultsLine();
+    single = (
+      <>
+        {resultsLine('summary-text grow')}
+        {nextButton}
+      </>
+    );
     extra = (
       <div className="info-row">
         <span className="muted grow">
@@ -186,14 +192,14 @@ export function GameTab({
             {side} played <strong>{san}</strong>
           </span>
         ) : (
-          resultsLine(2, 'summary-text grow')
+          resultsLine('summary-text grow')
         )}
         {nextButton}
       </>
     );
   } else if (revealed && results) {
     top = `${votes} · the top move is played next`;
-    summary = resultsLine(3);
+    summary = resultsLine();
     extra = (
       <div className="info-row muted">
         {error ? (
@@ -203,7 +209,7 @@ export function GameTab({
         )}
       </div>
     );
-    compact = resultsLine(2, 'summary-text grow');
+    compact = resultsLine('summary-text grow');
   } else if (canVote) {
     top = pick ? 'Tap Vote to confirm' : `Play ${side}’s move to vote`;
     summary = (
@@ -295,6 +301,7 @@ export function GameTab({
         />
       }
       summary={summary}
+      single={single}
       compact={compact}
       extra={extra}
       infoRows={2}

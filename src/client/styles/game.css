@@ -763,9 +763,14 @@ body {
 .screen-top .compact-only {
   display: none;
 }
+/* The status text gives way to the streak and buttons at the row's end. */
+.top-row > .line,
 .info-row > .line {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .pv {
   display: flex;
@@ -1493,6 +1498,21 @@ body {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+/* One line of whole moves: a move that doesn't fit wraps to a second line,
+   which is clipped, so nothing is cut mid-move. */
+.vote-results {
+  display: flex;
+  flex-wrap: wrap;
+  height: 1.4em;
+  line-height: 1.4;
+}
+.vote-results > span {
+  white-space: nowrap;
+}
+.vote-results > span + span::before {
+  content: '·';
+  margin: 0 0.35em;
 }
 cg-board square.cls-brilliant {
   background-color: rgb(30 170 170 / 0.5);

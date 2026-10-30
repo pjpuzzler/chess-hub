@@ -152,6 +152,16 @@ body {
   height: 18px;
   width: 180px;
 }
+/* Inline in a .meta line, standing in for text not loaded yet (vote counts):
+   the line keeps its text height, so the swap moves nothing. */
+.skeleton.text {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 100%;
+  width: 96px;
+  height: 0.9em;
+  border-radius: 6px;
+}
 .mini-board.skeleton {
   background: var(--surface-2);
 }
@@ -182,11 +192,14 @@ body {
   height: 100%;
   pointer-events: none;
 }
+.mini-board .arrow g {
+  opacity: 0.8;
+}
 .mini-board .arrow line {
-  stroke: rgb(21 120 27 / 0.8);
+  stroke: rgb(21 120 27);
   stroke-width: 0.22;
   stroke-linecap: round;
 }
-.mini-board .arrow path {
-  fill: rgb(21 120 27 / 0.8);
+.mini-board .arrow polygon {
+  fill: rgb(21 120 27);
 }

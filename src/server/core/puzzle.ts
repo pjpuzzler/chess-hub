@@ -87,26 +87,23 @@ const toMe = (p: Profile, m: Marks, latest: number): PuzzleMe => ({
   solvedTotal: p.solvedTotal,
 });
 
-export const getMe = async (
+/**
+ * The viewer's results, and whether they have finished (solved or gave up)
+ * so may see the solution. One set of parallel reads.
+ */
+export const getViewer = async (
   username: string,
   postId: string
-): Promise<PuzzleMe> => {
+): Promise<{ me: PuzzleMe; finished: boolean }> => {
   const [p, m, latest] = await Promise.all([
     readProfile(username),
     readMarks(postId, username),
     getLatestNumber(),
   ]);
-  return toMe(p, m, latest);
-};
-
-/** Has this viewer finished (solved or gave up), so may see the solution? */
-export const hasFinished = async (
-  username: string | null,
-  postId: string
-): Promise<boolean> => {
-  if (!username) return false;
-  const m = await readMarks(postId, username);
-  return m.result === 'solved' || m.revealed;
+  return {
+    me: toMe(p, m, latest),
+    finished: m.result === 'solved' || m.revealed,
+  };
 };
 
 /** The puzzle as sent to a client: no solution until finished. */
@@ -270,7 +267,8 @@ export const recordEvent = async (
 
 /**
  * Solve timing for later cheat analysis (never shown or returned). Per user
- * per post, in the attempts hash: t0 = epoch ms of their first view, tm = ms
+ * per post, in the attempts hash: t0 = epoch ms they first opened the puzzle
+ * (the expanded view's init; a feed card view does not count), tm = ms
  * from then to their first move, tf = ms to finishing. Each is set once.
  */
 export const markViewed = async (
@@ -282,6 +280,20 @@ export const markViewed = async (
   await redis.hSetNX(keys.attempts(postId), `t0:${username}`, String(now));
 };
 
+/**
+ * markViewed on the first open only. A repeat open would change nothing but
+ * the activity timestamps, which the first open (and any move) already set,
+ * so it costs one read instead of seven writes.
+ */
+export const markOpened = async (
+  postId: string,
+  username: string,
+  now = Date.now()
+) => {
+  const t0 = await redis.hGet(keys.attempts(postId), `t0:${username}`);
+  if (t0 === undefined) await markViewed(postId, username, now);
+};
+
 export const markTiming = async (
   postId: string,
   username: string,
@@ -289,8 +301,12 @@ export const markTiming = async (
   now = Date.now()
 ) => {
   const k = keys.attempts(postId);
-  // Viewed without an init (e.g. a direct API call): start the clock now.
-  await redis.hSetNX(k, `t0:${username}`, String(now));
+  // Played without an opening init (e.g. a direct API call or an older
+  // client): index the user for deletion first, then start the clock now.
+  if ((await redis.hGet(k, `t0:${username}`)) === undefined) {
+    await touchUser(username, { postId });
+    await redis.hSetNX(k, `t0:${username}`, String(now));
+  }
   const since = String(
     Math.max(0, now - toInt(await redis.hGet(k, `t0:${username}`), now))
   );

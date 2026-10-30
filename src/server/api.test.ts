@@ -197,6 +197,7 @@ describe('POST /api/poll/create', () => {
       runAs: 'USER',
       title: "What's the move? · Black to play",
       textFallback: { text: expect.stringContaining(FEN) },
+      postData: { card: { kind: 'poll', prompt: 'Black to play' } },
     });
     expect(await getPost(r.postId)).toMatchObject({ prompt: 'Black to play' });
   });
@@ -219,6 +220,23 @@ describe('POST /api/poll/create', () => {
       prompt: 'Best reply?',
       lastMove: 'e2e4',
     });
+  });
+
+  test("the form's default prompt isn't repeated in the title", async ({
+    headers,
+  }) => {
+    const submit = stubUserActions();
+    for (const [i, prompt] of [
+      'Black to play',
+      'black to play.',
+      'Black to move: mate in 2',
+    ].entries())
+      ok(await create(headers, `m${i}`, { ...good, prompt }));
+    expect(submit.mock.calls.map((c) => c[0].title)).toEqual([
+      "What's the move? · Black to play",
+      "What's the move? · Black to play",
+      'Black to move: mate in 2',
+    ]);
   });
 
   test('validates every field with plain messages', async ({ headers }) => {

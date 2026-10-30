@@ -3,33 +3,29 @@
 import bundled from '../data/anarchy-puzzles.json';
 
 export type AnarchyBucket =
-  | 'enPassant'
-  | 'knightBoost'
-  | 'doubleCheck'
-  | 'castling'
-  | 'smothered'
-  | 'easyMate'
-  | 'hard';
+  'enPassant' | 'knightBoost' | 'doubleCheck' | 'smothered' | 'rookSac';
 
-// Index = UTC weekday (0 = Sunday).
+// Index = UTC weekday (0 = Sunday). En passant, the sub's main meme, gets
+// three days; the bucket holds puzzles with it anywhere in the line.
 const WEEK: { bucket: AnarchyBucket; tagline: string }[] = [
-  { bucket: 'hard', tagline: 'Boring chess. For the nerds' },
-  { bucket: 'enPassant', tagline: 'Brick rule in effect' },
+  { bucket: 'enPassant', tagline: 'En passant is forced' },
+  { bucket: 'enPassant', tagline: 'Google en passant' },
   { bucket: 'knightBoost', tagline: 'Knight boost' },
   { bucket: 'doubleCheck', tagline: 'Double check wins the game' },
-  { bucket: 'castling', tagline: 'Special move: castling' },
+  { bucket: 'enPassant', tagline: 'Holy hell' },
   { bucket: 'smothered', tagline: 'The horsey has had enough' },
-  { bucket: 'easyMate', tagline: 'Gavin from 3rd grade solved this one' },
+  { bucket: 'rookSac', tagline: 'Sacrifice the rook' },
 ];
 
-/** Theme and tagline for a UTC date (YYYY-MM-DD). */
-export const anarchyDay = (date: string) => {
-  const day = WEEK[new Date(`${date}T00:00:00Z`).getUTCDay()];
-  // getUTCDay is 0-6, so this always exists.
-  return (
-    day ?? { bucket: 'hard' as const, tagline: 'Boring chess. For the nerds' }
-  );
+const SUNDAY = {
+  bucket: 'enPassant' as const,
+  tagline: 'En passant is forced',
 };
+
+/** Theme and tagline for a UTC date (YYYY-MM-DD). */
+export const anarchyDay = (date: string) =>
+  // getUTCDay is 0-6, so this always exists.
+  WEEK[new Date(`${date}T00:00:00Z`).getUTCDay()] ?? SUNDAY;
 
 export type AnarchySet = Partial<Record<AnarchyBucket, unknown[][]>>;
 
@@ -40,7 +36,7 @@ export const bundledAnarchy: AnarchySet = (() => {
     typeof data === 'object' && data ? Reflect.get(data, 'buckets') : null;
   if (typeof buckets !== 'object' || !buckets) return {};
   const out: AnarchySet = {};
-  for (const { bucket } of WEEK) {
+  for (const bucket of new Set(WEEK.map((d) => d.bucket))) {
     const rows: unknown = Reflect.get(buckets, bucket);
     if (Array.isArray(rows) && rows.every((r) => Array.isArray(r)))
       out[bucket] = rows;

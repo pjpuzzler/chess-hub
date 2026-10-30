@@ -38,8 +38,8 @@ import {
 } from '../core/posts';
 import {
   getStats,
+  markOpened,
   markTiming,
-  markViewed,
   publicPuzzle,
   recordEvent,
 } from '../core/puzzle';
@@ -76,18 +76,26 @@ const isMoveList = (v: unknown): v is string[] =>
   v.length <= 10 &&
   v.every((m) => typeof m === 'string' && m.length <= 5);
 
+// `?open=1` comes from the expanded view only: opening a puzzle starts the
+// viewer's solve clock; the feed card's init must not.
 api.get('/init', async (c) => {
   const { postId } = context;
+  const opened = c.req.query('open') === '1';
   if (!postId) return fail(c, 400, GENERIC);
+  // Everything independent runs at once: the moderator check (a Reddit API
+  // call) overlaps the post read and the view's own reads.
+  const username = await currentUsername();
+  const modCheck = username ? isModerator(username) : Promise.resolve(false);
   const post = await getPostHealed(postId);
   if (!post) return fail(c, 404, GONE);
-  const username = await currentUsername();
-  const canModerate = username ? await isModerator(username) : false;
-  if (post.kind === 'puzzle' && username) await markViewed(postId, username);
-  const [view, create, anarchy] = await Promise.all([
-    buildView(postId, post, username, Date.now(), canModerate),
-    createOptions(username, canModerate),
+  const [view, create, anarchy, canModerate] = await Promise.all([
+    buildView(postId, post, username, Date.now(), modCheck),
+    createOptions(username, modCheck),
     isAnarchy(),
+    modCheck,
+    post.kind === 'puzzle' && username && opened
+      ? markOpened(postId, username)
+      : null,
   ]);
   return c.json<InitResponse>({
     type: 'init',

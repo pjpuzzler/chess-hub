@@ -17,6 +17,7 @@ import {
   GAME_FETCH_PGN,
   LEADERBOARD,
   MOD,
+  cardFor,
   type Fixture,
 } from './fixtures';
 
@@ -26,10 +27,15 @@ const latency = Number(params.get('latency') ?? 350);
 const fallback = FIXTURES.puzzle;
 if (!fallback) throw new Error('missing puzzle fixture');
 const fixture: Fixture = FIXTURES[fixtureName] ?? fallback;
+// ?legacy=1: a post made before postData carried the card text.
+const legacy = params.get('legacy') === '1';
 
 export const context = {
   postId: 't3_mock',
-  postData: fixture.postData,
+  postData:
+    fixture.init && !legacy
+      ? { ...fixture.postData, card: cardFor(fixture.init) }
+      : fixture.postData,
   username: fixture.username ?? undefined,
   userId: fixture.username ? 't2_mock' : undefined,
   subredditName: 'chess_hub_dev',

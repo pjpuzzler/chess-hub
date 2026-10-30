@@ -5,25 +5,25 @@ import type { LineMove } from '../lib/chess';
 import { MoveInput } from './MoveInput';
 import { Button } from './ui';
 
-// "Rxd7 64% · Bxf6 21%", the viewer's own vote marked.
+// "Rxd7 64% · Bxf6 21% · ...", the viewer's own vote marked: as many whole
+// moves as fit on the row (the rest wrap onto a hidden second line).
+const MAX_SHOWN = 6;
+
 export function VoteResults({
   results,
   pcts,
   myVote = null,
-  count,
   className = 'summary-text',
 }: {
   results: PollResult[];
   pcts: number[];
   myVote?: string | null;
-  count: number;
   className?: string;
 }) {
   return (
-    <span className={className}>
-      {results.slice(0, count).map((r, i) => (
+    <span className={`${className} vote-results`}>
+      {results.slice(0, MAX_SHOWN).map((r, i) => (
         <span key={r.move}>
-          {i > 0 ? ' · ' : ''}
           <strong>{r.san}</strong> {pcts[i] ?? 0}%
           {r.move === myVote ? <span className="muted"> (you)</span> : null}
         </span>

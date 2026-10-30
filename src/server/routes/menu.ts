@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import type { UiResponse } from '@devvit/web/shared';
-import { context } from '@devvit/web/server';
+import { context, redis } from '@devvit/web/server';
 import {
+  DELETED,
   postDailyPuzzle,
   postEloGame,
   todaysPostId,
@@ -30,12 +31,16 @@ const postNow = async (
   run: () => Promise<DailyResult>,
   name: string
 ): Promise<UiResponse> => {
-  const existing = await todaysPostId(utcDate(new Date()), series);
+  const date = utcDate(new Date());
+  const existing = await todaysPostId(date, series);
   if (existing)
     return {
       showToast: `Today's ${name} is already up.`,
       navigateTo: postUrl(existing),
     };
+  // Today's post was deleted: a mod asking for one now gets a replacement.
+  const cur = await redis.hGet(keys.dates(series), date);
+  if (cur?.startsWith(DELETED)) await redis.hDel(keys.dates(series), [date]);
   const res = await run();
   if (res.status === 'posted')
     return {

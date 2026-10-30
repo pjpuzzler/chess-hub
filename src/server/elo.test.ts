@@ -171,6 +171,7 @@ describe('POST /api/elo/create (Guess my Elo)', () => {
     expect(submit.mock.calls[0]?.[0]).toMatchObject({
       runAs: 'USER',
       title: 'Guess my Elo',
+      postData: { card: { kind: 'elo', number: 0, timeControl: '300+3' } },
     });
     const stored = await getPost(postId);
     expect(stored).toMatchObject({
@@ -182,7 +183,7 @@ describe('POST /api/elo/create (Guess my Elo)', () => {
       black: 1250,
       game: { timeControl: '300+3', result: '1-0' },
     });
-    const text = JSON.stringify(stored);
+    const text = JSON.stringify([stored, submit.mock.calls[0]?.[0]]);
     for (const secret of ['Secret', 'Other Name', 'nervous', 'My game'])
       expect(text).not.toContain(secret);
     // The author sees the answer and cannot guess their own game.
@@ -344,6 +345,7 @@ describe('post data', () => {
       kind: 'elo',
       fen: end.fen(),
       orientation: 'white',
+      card: { kind: 'elo', number: 1, timeControl: '600+0' },
     });
     stubUserActions();
     const r = await as(headers, { username: 'me' }, () =>
@@ -357,6 +359,7 @@ describe('post data', () => {
       kind: 'elo',
       fen: end.fen(),
       orientation: 'white',
+      card: { kind: 'elo', number: 0, timeControl: expect.any(String) },
     });
   });
 });

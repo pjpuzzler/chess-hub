@@ -71,12 +71,16 @@ export const buildEloView = async (
   post: StoredEloPost,
   username: string | null
 ): Promise<EloView> => {
-  const mine = username
-    ? await redis.hGet(keys.eloGuesses(postId), username)
-    : undefined;
+  const isAuthor = username !== null && username === post.author;
+  // The author always sees the reveal, so it needn't wait for their guess.
+  const [mine, me, authorReveal] = await Promise.all([
+    username ? redis.hGet(keys.eloGuesses(postId), username) : undefined,
+    username ? userTotals(username) : null,
+    isAuthor ? getReveal(postId, post) : null,
+  ]);
   const myGuess = mine === undefined ? null : toInt(mine);
-  const canSee =
-    myGuess !== null || (username !== null && username === post.author);
+  const reveal =
+    authorReveal ?? (myGuess !== null ? await getReveal(postId, post) : null);
   return {
     kind: 'elo',
     source: post.source,
@@ -86,8 +90,8 @@ export const buildEloView = async (
     game: post.game,
     myGuess,
     myScore: myGuess === null ? null : eloScore(myGuess, average(post)),
-    reveal: canSee ? await getReveal(postId, post) : null,
-    me: username ? await userTotals(username) : null,
+    reveal,
+    me,
   };
 };
 
@@ -189,12 +193,14 @@ export const createEloMemberPost = async (
   const title = caption
     ? `Guess the Elo: ${caption}`.slice(0, 120)
     : 'Guess my Elo';
+  const timeControl = cleanText(game.tags['TimeControl'] ?? '-', 20) || '-';
   const res = await submitAsUser({
     title,
     postData: {
       kind: 'elo',
       fen: game.fens[game.fens.length - 1] ?? game.startFen,
       orientation: 'white',
+      card: { kind: 'elo', number: 0, timeControl },
     },
     fallback: `${title}: guess the players' average rating.`,
     ugc: caption ? `${title}\n${caption}` : title,
@@ -206,7 +212,7 @@ export const createEloMemberPost = async (
     date: utcDate(now),
     game: {
       pgn: movetextOnly(game.pgn),
-      timeControl: cleanText(game.tags['TimeControl'] ?? '-', 20) || '-',
+      timeControl,
       result: game.result,
     },
     white,

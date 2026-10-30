@@ -28,10 +28,8 @@ const ANARCHY: AnarchySet = {
   enPassant: themed('ep'),
   knightBoost: themed('kb'),
   doubleCheck: themed('dc'),
-  castling: themed('ca'),
   smothered: themed('sm'),
-  easyMate: themed('em'),
-  hard: themed('hd'),
+  rookSac: themed('rs'),
 };
 
 const post = async (date: string, set: AnarchySet = ANARCHY) => {
@@ -50,13 +48,13 @@ describe('anarchy weekday table', () => {
       anarchyDay(`2026-11-${d}`)
     );
     expect(week).toEqual([
-      { bucket: 'hard', tagline: 'Boring chess. For the nerds' },
-      { bucket: 'enPassant', tagline: 'Brick rule in effect' },
+      { bucket: 'enPassant', tagline: 'En passant is forced' },
+      { bucket: 'enPassant', tagline: 'Google en passant' },
       { bucket: 'knightBoost', tagline: 'Knight boost' },
       { bucket: 'doubleCheck', tagline: 'Double check wins the game' },
-      { bucket: 'castling', tagline: 'Special move: castling' },
+      { bucket: 'enPassant', tagline: 'Holy hell' },
       { bucket: 'smothered', tagline: 'The horsey has had enough' },
-      { bucket: 'easyMate', tagline: 'Gavin from 3rd grade solved this one' },
+      { bucket: 'rookSac', tagline: 'Sacrifice the rook' },
     ]);
   });
 });
@@ -71,11 +69,11 @@ describe('anarchy only in r/AnarchyChess', () => {
       );
       expect(await getPost(id)).toMatchObject({
         puzzle: { id: 'ep1' },
-        tagline: 'Brick rule in effect',
+        tagline: 'Google en passant',
       });
       const body = await init(headers, id);
       expect(body.flags.anarchy).toBe(true);
-      expect(body.post).toMatchObject({ tagline: 'Brick rule in effect' });
+      expect(body.post).toMatchObject({ tagline: 'Google en passant' });
     }
   );
 
@@ -100,13 +98,14 @@ describe('anarchy only in r/AnarchyChess', () => {
   });
 
   forced(
-    'each theme has its own cursor and never repeats until used up',
+    'each theme has one cursor across its days and never repeats until used up',
     async () => {
       const ids = [];
+      // Monday, Thursday and Sunday are all en passant; then a Tuesday.
       for (const d of [
         '2026-11-02',
-        '2026-11-09',
-        '2026-11-16',
+        '2026-11-05',
+        '2026-11-08',
         '2026-11-03',
       ]) {
         const p = await getPost(await post(d));

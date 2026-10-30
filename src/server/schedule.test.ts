@@ -234,7 +234,7 @@ describe('Guess the Elo scheduling', () => {
 });
 
 describe('deleting a scheduled post', () => {
-  test("frees today's date and the pin so the menu can post again", async () => {
+  test('keeps today claimed (no hourly repost) but the menu can post again', async () => {
     await spyPins();
     const first = await postDailyPuzzle(at('2026-10-29', 13), SET);
     if (first.status !== 'posted') throw new Error('no post');
@@ -245,10 +245,17 @@ describe('deleting a scheduled post', () => {
         type: 'PostDelete',
         postId: first.postId,
       });
-      expect(
-        await redis.hGet(keys.dates('daily'), '2026-10-29')
-      ).toBeUndefined();
+      expect(await redis.hGet(keys.dates('daily'), '2026-10-29')).toBe(
+        `deleted:${first.postId}`
+      );
       expect(await redis.get(keys.pinned('daily'))).toBeUndefined();
+      // The hourly retry leaves the deleted day alone.
+      expect((await postDailyPuzzle(at('2026-10-29', 16), SET)).status).toBe(
+        'exists'
+      );
+      expect(await nextPuzzleAt(at('2026-10-29', 16))).toBe(
+        at('2026-10-30', 13).getTime()
+      );
       const menu = await call('POST', '/internal/menu/daily-post', {});
       expect(menu.json).toMatchObject({
         showToast: { text: 'Posted Daily Puzzle #2' },
@@ -272,16 +279,15 @@ describe('deleting a scheduled post', () => {
     );
   });
 
-  test('frees a curated Guess the Elo date too', async () => {
+  test('a deleted curated Guess the Elo day is not reposted either', async () => {
     const e = await postEloGame(at('2026-10-31', 13), ELO);
     if (e.status !== 'posted') throw new Error('no post');
     await call('POST', '/internal/triggers/on-post-delete', {
       type: 'PostDelete',
       postId: e.postId,
     });
-    expect(await redis.hGet(keys.dates('elo'), '2026-10-31')).toBeUndefined();
     expect((await postEloGame(at('2026-10-31', 14), ELO)).status).toBe(
-      'posted'
+      'exists'
     );
   });
 });

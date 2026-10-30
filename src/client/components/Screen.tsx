@@ -36,6 +36,7 @@ export function Screen({
   detailsTitle = 'Details',
   infoRows = 1,
   compact,
+  single,
   nav,
 }: {
   top?: ReactNode; // one line, height reserved so nothing below moves
@@ -47,12 +48,18 @@ export function Screen({
   details?: ReactNode; // behind the Details button (inline on wide screens)
   detailsTitle?: string;
   infoRows?: number; // the most info rows this view shows in any state
-  // Short screens: the one row that replaces the status line and the info
-  // rows, so the board can still span the width.
+  // Shorter screens: the one info row under the status line when only one
+  // fits (default: summary).
+  single?: ReactNode;
+  // Shortest screens: the one row that replaces the status line and the
+  // info rows, so the board can still span the width.
   compact?: ReactNode;
   nav?: ReactNode; // bottom bar contents
 }) {
-  const [isCompact, setCompact] = useState(false);
+  // full: status line + all info rows; single: status line + one row;
+  // compact: one row in all.
+  const [mode, setMode] = useState<'full' | 'single' | 'compact'>('full');
+  const isCompact = mode === 'compact';
   const hasCompact = compact !== undefined;
   const [openFrom, setOpenFrom] = useState<number | null>(null);
   const [wide, setWide] = useState(() => window.matchMedia(WIDE).matches);
@@ -77,7 +84,7 @@ export function Screen({
         el.querySelector<HTMLElement>(sel)?.offsetHeight ?? 0;
       let size;
       if (window.matchMedia(WIDE).matches) {
-        setCompact(false);
+        setMode('full');
         const evalW =
           el.querySelector<HTMLElement>('.screen-board > .eval-bar')
             ?.offsetWidth ?? 0;
@@ -88,19 +95,26 @@ export function Screen({
         );
       } else {
         // Phones: a full-width board first. If the status line and the info
-        // rows leave no room for it, fold them into one row (compact). Space
-        // left over makes the rows roomier, then spreads evenly around them.
+        // rows leave no room for it, keep the status line and one row
+        // (single), then fold everything into one row (compact). Space left
+        // over makes the rows roomier, then spreads evenly around them.
         const full = boardSide(el.clientWidth);
         const around =
           part('.screen-board > .eval-bar') +
           part('.screen-strip') +
           part('.bottom') +
           INFO_PAD * 2;
-        const normal = TOP_H + around + infoRows * ROW_H;
-        const fold = el.clientHeight - normal < full && hasCompact;
-        setCompact(fold);
-        const rows = fold ? 1 : infoRows;
-        const fixed = (fold ? 0 : TOP_H) + around + rows * ROW_H;
+        const fits = (top: number, rows: number) =>
+          el.clientHeight - (top + around + rows * ROW_H) >= full;
+        const next =
+          fits(TOP_H, infoRows) || infoRows <= 1 || !hasCompact
+            ? 'full'
+            : fits(TOP_H, 1)
+              ? 'single'
+              : 'compact';
+        setMode(next);
+        const rows = next === 'full' ? infoRows : 1;
+        const fixed = (next === 'compact' ? 0 : TOP_H) + around + rows * ROW_H;
         size = Math.min(el.clientWidth, el.clientHeight - fixed);
         const spare = el.clientHeight - fixed - boardSide(size);
         const rowH = Math.min(ROW_MAX, ROW_H + Math.floor(spare / rows));
@@ -165,6 +179,8 @@ export function Screen({
             <div className="info-row" aria-live="polite">
               {compact}
             </div>
+          ) : mode === 'single' ? (
+            <div className="info-row">{single ?? summary}</div>
           ) : (
             <>
               {summary ? <div className="info-row">{summary}</div> : null}

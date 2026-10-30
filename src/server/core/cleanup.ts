@@ -2,10 +2,12 @@
 // aggregates (rating, streaks, totals) are kept.
 import { redis } from '@devvit/web/server';
 import { forgetGamePost } from './game';
+import { DELETED } from './daily';
 import { getPost, keys, parseJson } from './store';
 
 export const deletePostData = async (postId: string): Promise<void> => {
-  // Free a scheduled post's date so mods can post again the same day.
+  // A scheduled post's date is marked deleted: the hourly retry leaves the
+  // day alone, and the mod menu can post a replacement.
   const post = await getPost(postId);
   if (post?.kind === 'game') await forgetGamePost(postId);
   const series =
@@ -16,7 +18,9 @@ export const deletePostData = async (postId: string): Promise<void> => {
         : null;
   if (post && series && 'date' in post) {
     if ((await redis.hGet(keys.dates(series), post.date)) === postId)
-      await redis.hDel(keys.dates(series), [post.date]);
+      await redis.hSet(keys.dates(series), {
+        [post.date]: `${DELETED}${postId}`,
+      });
     if ((await redis.get(keys.pinned(series))) === postId)
       await redis.del(keys.pinned(series));
     const latest = parseJson(await redis.get(keys.latestPost(series)));

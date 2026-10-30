@@ -4,7 +4,7 @@ import { getResults, isClosed } from './pollVote';
 import { currentElo, nextPuzzleAt } from './daily';
 import { buildEloView } from './elo';
 import { buildGameView } from './game';
-import { getMe, getStats, hasFinished, publicPuzzle } from './puzzle';
+import { getStats, getViewer, publicPuzzle } from './puzzle';
 import { getAnalysis } from './review';
 import { keys, type StoredPost } from './store';
 
@@ -19,17 +19,19 @@ export const buildView = async (
   post: StoredPost,
   username: string | null,
   now: number = Date.now(),
-  isMod = false
+  // May be a pending check, so the reads below need not wait for it.
+  isMod: boolean | Promise<boolean> = false
 ): Promise<PostView> => {
   switch (post.kind) {
     case 'puzzle': {
-      const [stats, me, finished, next, elo] = await Promise.all([
+      const [stats, viewer, next, elo] = await Promise.all([
         getStats(postId),
-        username ? getMe(username, postId) : Promise.resolve(null),
-        hasFinished(username, postId),
+        username ? getViewer(username, postId) : null,
         nextPuzzleAt(new Date(now)),
         currentElo(),
       ]);
+      const me = viewer?.me ?? null;
+      const finished = viewer?.finished ?? false;
       return {
         kind: 'puzzle',
         number: post.number,
@@ -43,10 +45,11 @@ export const buildView = async (
       };
     }
     case 'poll': {
-      const myVote = username
-        ? ((await redis.hGet(keys.votes(postId), username)) ?? null)
-        : null;
-      const { results, totalVotes } = await getResults(postId, post);
+      const [vote, { results, totalVotes }] = await Promise.all([
+        username ? redis.hGet(keys.votes(postId), username) : undefined,
+        getResults(postId, post),
+      ]);
+      const myVote = vote ?? null;
       const visible = myVote !== null || isClosed(post, now);
       return {
         kind: 'poll',
@@ -59,7 +62,8 @@ export const buildView = async (
         results: visible ? results : null,
       };
     }
-    case 'review':
+    case 'review': {
+      const [analysis, mod] = await Promise.all([getAnalysis(postId), isMod]);
       return {
         kind: 'review',
         pgn: post.pgn,
@@ -68,9 +72,10 @@ export const buildView = async (
         result: post.result,
         caption: post.caption,
         author: post.author,
-        analysis: await getAnalysis(postId),
-        canReset: username !== null && (username === post.author || isMod),
+        analysis,
+        canReset: username !== null && (username === post.author || mod),
       };
+    }
     case 'elo':
       return buildEloView(postId, post, username);
     case 'game':

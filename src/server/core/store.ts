@@ -215,6 +215,10 @@ const CONTROL_NO_NEWLINE = /[\u0000-\u0009\u000b-\u001f\u007f]/g;
 export const cleanText = (v: string, max: number): string =>
   v.replace(CONTROL_NO_NEWLINE, '').trim().slice(0, max);
 
+/** At most `max` characters (whole code points) for postData's 2 KB. */
+export const clip = (v: string, max: number): string =>
+  Array.from(v).slice(0, max).join('');
+
 /**
  * Run `fn` inside an optimistic Redis transaction on `watchKeys`, retrying if
  * another request touched them first. `fn` reads with the plain client, then
@@ -253,3 +257,6 @@ export const withTransaction = async <T>(
  * for 264 px).
  */
 export const FEED_STYLES = { heightPixels: 264 };
+// The community game is the sub's shared event: a tall card with the board
+// full width on phones (393-430 px wide).
+export const GAME_FEED_STYLES = { heightPixels: 512 };
