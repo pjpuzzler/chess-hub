@@ -1,0 +1,52 @@
+Chess Hub sound effects
+=======================
+
+All five sounds are derived from real recordings released under
+Creative Commons Zero 1.0 (CC0 1.0, public domain dedication,
+https://creativecommons.org/publicdomain/zero/1.0/). No attribution is
+required; it is given here as a courtesy and for provenance.
+
+Licence verification (2026-10-29): each source page below was fetched with
+curl and its licence block read "Creative Commons 0" linking to
+creativecommons.org/publicdomain/zero/1.0. Source audio is each page's
+"HQ preview" MP3 (cdn.freesound.org/previews/...), a transcode of the
+original upload; the original files need a Freesound login.
+
+Sources
+-------
+[A] "Chess Pieces Move (Close)" by JJTaynos (Freesound #733927)
+    https://freesound.org/people/JJTaynos/sounds/733927/
+    Recording of chess pieces being moved on a board.
+[B] "chess pieces.wav" by simone_ds (Freesound #366065)
+    https://freesound.org/people/simone_ds/sounds/366065/
+    Chess pieces put down on a board with varying hardness.
+[C] Marimba one-shots by sgossner, from Versilian Studios Chamber
+    Orchestra 2: Community Edition (pack "VSCO 2 CE - Percussion - Marimba")
+    C5: https://freesound.org/people/sgossner/sounds/373580/
+        original file Marimba_hit_Outrigger_C4_loud_01.wav
+    G5: https://freesound.org/people/sgossner/sounds/373586/
+        original file Marimba_hit_Outrigger_G4_loud_01.wav
+    F4: https://freesound.org/people/sgossner/sounds/373583/
+        original file Marimba_hit_Outrigger_F3_loud_01.wav
+    (pitches measured; the file names are one octave low)
+
+Files
+-----
+move.mp3     [A], single placement at 40.953 s.
+capture.mp3  [A], light placement at 40.953 s (-9 dB) followed 38 ms
+             later by the heavier placement at 38.444 s (a double knock).
+check.mp3    [B], single bright placement at 18.720 s.
+success.mp3  [C] C5, then G5 110 ms later (rising fifth).
+fail.mp3     [C] C5, then F4 130 ms later (falling fifth).
+
+Processing (ffmpeg 9.0.2)
+-------------------------
+- Cut from about 4 ms before the transient; downmixed to mono, 44.1 kHz.
+- High-pass at 100 Hz (knocks) / 80 Hz (marimba) to remove room rumble.
+- Lengths 0.26-0.30 s (knocks) and 0.80-0.85 s (marimba), with
+  0.12 s / 0.40 s linear fade-outs.
+- Loudness matched: knocks to -21 dBFS RMS over the first 80 ms, marimba
+  cues to -24 dBFS RMS over the first 300 ms, then a fast peak limiter at
+  -1.5 dBFS (only check.mp3 is touched). Result: all within about
+  1.6 LU of each other (K-weighted), peaks -1.7 to -14.6 dBFS.
+- Encoded with LAME, MP3 CBR 96 kbps mono.

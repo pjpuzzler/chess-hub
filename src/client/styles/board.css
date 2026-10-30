@@ -1,0 +1,106 @@
+/* Chess Hub board theme for Chessground: classic brown squares, our own highlights. */
+cg-board {
+  background: repeating-conic-gradient(
+      var(--sq-dark) 0 25%,
+      var(--sq-light) 0 50%
+    )
+    0 0 / 25% 25%;
+  border-radius: 4px;
+}
+
+cg-board square.move-dest {
+  background: radial-gradient(rgb(20 85 30 / 0.45) 19%, transparent 21%);
+}
+cg-board square.oc.move-dest {
+  background: radial-gradient(
+    transparent 0%,
+    transparent 79%,
+    rgb(20 85 0 / 0.35) 80%
+  );
+}
+@media (hover: hover) {
+  cg-board square.move-dest:hover {
+    background: rgb(20 85 30 / 0.28);
+  }
+}
+cg-board square.last-move {
+  background-color: rgb(205 210 106 / 0.55);
+}
+cg-board square.selected {
+  background-color: rgb(20 85 30 / 0.5);
+}
+cg-board square.check {
+  background: radial-gradient(
+    ellipse at center,
+    rgb(255 0 0 / 1) 0%,
+    rgb(231 0 0 / 1) 25%,
+    rgb(169 0 0 / 0) 89%,
+    rgb(158 0 0 / 0) 100%
+  );
+}
+cg-board square.wrong {
+  background-color: rgb(204 51 51 / 0.55);
+}
+cg-board square.good {
+  background-color: rgb(80 160 60 / 0.55);
+}
+
+/* Coordinates drawn inside the edge squares. */
+.cg-wrap coords {
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: clamp(8px, 2.3vw, 12px);
+  opacity: 1;
+}
+.cg-wrap coords.ranks {
+  left: auto;
+  right: 2px;
+  top: 2px;
+  width: 10px;
+  align-items: flex-end;
+}
+.cg-wrap coords.ranks coord {
+  transform: none;
+}
+.cg-wrap coords.files {
+  bottom: 1px;
+  left: 0;
+  height: auto;
+  text-transform: none;
+  text-align: left;
+}
+.cg-wrap coords.files coord {
+  padding-left: 3px;
+}
+.orientation-white .ranks :nth-child(odd),
+.orientation-white .files :nth-child(even),
+.orientation-black .ranks :nth-child(even),
+.orientation-black .files :nth-child(odd) {
+  color: var(--sq-dark);
+}
+.orientation-white .ranks :nth-child(even),
+.orientation-white .files :nth-child(odd),
+.orientation-black .ranks :nth-child(odd),
+.orientation-black .files :nth-child(even) {
+  color: var(--sq-light);
+}
+
+/* Review: tint the destination square of the move being reviewed. */
+cg-board square.cls-best {
+  background-color: rgb(80 170 70 / 0.5);
+}
+cg-board square.cls-excellent {
+  background-color: rgb(120 180 90 / 0.45);
+}
+cg-board square.cls-inaccuracy {
+  background-color: rgb(230 180 40 / 0.55);
+}
+cg-board square.cls-mistake {
+  background-color: rgb(235 120 40 / 0.55);
+}
+cg-board square.cls-blunder {
+  background-color: rgb(220 50 40 / 0.55);
+}
+cg-board square.cls-missedMate {
+  background-color: rgb(170 80 200 / 0.5);
+}

@@ -1,0 +1,71 @@
+/* Design tokens shared by the inline splash and the expanded game view. */
+:root {
+  color-scheme: light dark;
+  --bg: #f3f1ec;
+  --surface: #ffffff;
+  --surface-2: #ebe7df;
+  --fg: #22201c;
+  --muted: #6d675e;
+  --line: #dfdad0;
+  --accent: #4f7f22;
+  --accent-hover: #44701c;
+  --accent-fg: #ffffff;
+  --good: #3d8b2f;
+  --bad: #c43f2b;
+  --gold: #c7861a;
+  --sq-light: #f0d9b5;
+  --sq-dark: #b58863;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 4px 14px rgb(0 0 0 / 0.08);
+  --radius: 10px;
+  --font:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161512;
+    --surface: #23211d;
+    --surface-2: #2e2b26;
+    --fg: #ece8e1;
+    --muted: #a39d92;
+    --line: #3a3630;
+    --accent: #6fa83a;
+    --accent-hover: #7db846;
+    --accent-fg: #10140b;
+    --good: #72c055;
+    --bad: #e46a54;
+    --gold: #e0a43a;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 18px rgb(0 0 0 / 0.35);
+  }
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Static board used by the splash preview and the promotion picker. */
+.mini-board {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: repeating-conic-gradient(
+      var(--sq-dark) 0 25%,
+      var(--sq-light) 0 50%
+    )
+    0 0 / 25% 25%;
+}
+.mini-board piece {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+  background-size: cover;
+}

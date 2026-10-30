@@ -1,0 +1,1499 @@
+/* Expanded view. Board first: on phones the board runs edge to edge with one
+   status line above it, a move strip below it and a bottom bar fixed to the
+   viewport. On wide screens the board sits left and the rest stacks right. */
+
+:root {
+  /* Every px here comes out of the board on short screens. */
+  --header-h: 44px;
+  --top-h: 32px;
+  --strip-h: 36px;
+  --nav-h: 48px;
+  --gutter: 16px;
+  --c-brilliant: #138a8a;
+  --c-inaccuracy: #b8860b;
+  --c-mistake: #d9711c;
+  --c-blunder: #cc3a2b;
+  --eval-dark: #6f6b65;
+  --eval-light: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-brilliant: #3cc6c6;
+    --c-inaccuracy: #e5bb3c;
+    --c-mistake: #f0924a;
+    --c-blunder: #f0604f;
+    --eval-dark: #3b3935;
+    --eval-light: #ecebe8;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+h1,
+h2,
+p,
+ol,
+ul {
+  margin: 0;
+}
+ol,
+ul {
+  padding: 0;
+  list-style: none;
+}
+body {
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- text ---------- */
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 13px;
+}
+.line {
+  font-size: 15px;
+  font-weight: 600;
+}
+.line.tone-muted,
+.tone-muted {
+  color: var(--muted);
+  font-weight: 500;
+}
+.tone-good {
+  color: var(--good);
+}
+.tone-bad {
+  color: var(--bad);
+}
+.aside {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+}
+.pad {
+  padding: var(--gutter);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--header-h);
+  padding: 0 8px 0 var(--gutter);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-end {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.text-tabs {
+  display: flex;
+}
+.text-tab {
+  height: var(--header-h);
+  padding: 0 10px;
+  border: 0;
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.text-tab[aria-selected='true'] {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+}
+@media (max-width: 420px) {
+  .text-tab {
+    padding: 0 6px;
+    font-size: 13px;
+  }
+  .title {
+    font-size: 15px;
+  }
+  .topbar {
+    gap: 8px;
+    padding-right: 8px;
+  }
+  .topbar .icon-btn {
+    min-width: 36px;
+    padding: 0 6px;
+  }
+  .topbar-end {
+    gap: 0;
+  }
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.btn-plain:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.btn-link {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  justify-content: flex-start;
+  color: var(--accent);
+  font-weight: 600;
+}
+.btn-link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+/* Icons at a row's end line up with the gutter, like the text on the left. */
+.top-row > .icon-btn:last-child,
+.top-row > .top-end > .icon-btn:last-child,
+.info-row > .top-end > .icon-btn:last-child {
+  margin-right: -11px;
+}
+.top-end {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.top-end .streak {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* Hover only where there is hover: on touch screens a tapped button would
+   keep its grey box. */
+@media (hover: hover) {
+  .icon-btn:hover {
+    color: var(--fg);
+    background: var(--surface-2);
+  }
+}
+.icon-btn:active {
+  color: var(--fg);
+}
+.icon-btn.round {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--fg);
+}
+:is(
+  .btn,
+  .icon-btn,
+  .text-tab,
+  .nav-btn,
+  .strip-move,
+  .lb-kind,
+  .choice,
+  .pv
+):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.icon {
+  flex: none;
+}
+.grow {
+  flex: 1;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.stack > .btn-link {
+  align-self: flex-start;
+}
+.login-btn {
+  align-self: flex-start;
+}
+
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line);
+  border-top-color: var(--fg);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- screen layout ---------- */
+/* The expanded view fits the viewport; nothing scrolls on phones.
+   Screen (Screen.tsx) measures the parts and sets --board (the board side,
+   a multiple of 8 device pixels) and --bottom-h (the bottom bar). */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+/* Pinned to the visible viewport: in an embedded webview dvh can differ
+   from what is actually on screen. */
+.app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+.content {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tab-away {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+}
+.content > div:not([hidden]),
+.content > .screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.screen {
+  --board: min(100vw, 50dvh);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.screen-side {
+  display: contents;
+}
+.screen-top {
+  order: 0;
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: var(--top-h);
+  padding: 0 var(--gutter);
+  overflow: hidden;
+}
+.top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.screen-board {
+  order: 1;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.board-box {
+  flex: none;
+  width: var(--board);
+  height: var(--board);
+}
+.board-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.board-cg {
+  width: 100%;
+  height: 100%;
+}
+/* Edge to edge on phones: square corners, like the screen edge. */
+.screen-board cg-board {
+  border-radius: 0;
+}
+@media (min-width: 760px) {
+  .screen-board cg-board {
+    border-radius: 4px;
+  }
+}
+.screen-strip {
+  order: 2;
+  flex: none;
+  height: var(--strip-h);
+  border-bottom: 1px solid var(--line);
+}
+/* Info rows between the strip and the bottom bar. Each view reserves its
+   row count (Screen's infoRows), so rows here never get cut. */
+/* Rows grow to --row-h when there's room (Screen sets it), and what's
+   left after that spreads evenly above, between and below them. */
+.info {
+  order: 3;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  position: relative;
+  padding: 4px var(--gutter);
+}
+/* The grab bar: tap or drag up for the details sheet. */
+/* Sits on the line between the move strip and the rows: no space of its
+   own, so having one never moves the layout. */
+.grab {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  z-index: 1;
+  width: 120px;
+  height: 22px;
+  margin-left: -60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: none;
+}
+.grab-pill {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  box-shadow: 0 0 0 3px var(--bg); /* a gap in the strip's border line */
+}
+.grab:active .grab-pill,
+.grab:focus-visible .grab-pill {
+  background: var(--muted);
+}
+.grab:focus-visible {
+  outline: none;
+}
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--row-h, 30px);
+  white-space: nowrap;
+}
+.info .btn {
+  min-height: 30px;
+  padding: 0 14px;
+}
+.info .btn-link {
+  padding: 0;
+}
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.details-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bottom {
+  order: 4;
+  flex: none;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  position: relative;
+  z-index: 31;
+}
+.navbar {
+  display: flex;
+  height: var(--nav-h);
+}
+.nav-set {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  cursor: pointer;
+}
+.nav-btn:disabled {
+  color: var(--muted);
+  opacity: 0.4;
+  cursor: default;
+}
+.nav-btn:active:not(:disabled) {
+  background: var(--surface-2);
+}
+.nav-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (min-width: 760px) {
+  :root {
+    --gutter: 18px;
+  }
+  .content {
+    padding: 20px;
+  }
+  .screen {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 24px;
+  }
+  .screen-board {
+    order: 0;
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .screen-side {
+    order: 1;
+    display: flex;
+    flex-direction: column;
+    width: 340px;
+    max-height: 100%;
+    flex: none;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .screen-top {
+    border-bottom: 1px solid var(--line);
+  }
+  .screen-strip {
+    height: auto;
+  }
+  /* Wide screens: details inline, the column scrolls if it must. */
+  .info {
+    overflow-y: auto;
+  }
+  .info-row {
+    white-space: normal;
+  }
+  .info {
+    justify-content: flex-start;
+  }
+  .info {
+    padding-top: 8px;
+  }
+  .info-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 8px;
+  }
+  .bottom {
+    background: none;
+  }
+}
+
+/* ---------- move strip ---------- */
+/* The gutter as padding, and a fade at both edges so moves scrolled past
+   an edge fade out instead of being cut. */
+.strip {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 var(--gutter);
+  overflow-x: auto;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--gutter),
+    #000 calc(100% - var(--gutter)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--gutter),
+    #000 calc(100% - var(--gutter)),
+    transparent
+  );
+  white-space: nowrap;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.strip::-webkit-scrollbar {
+  display: none;
+}
+.strip li {
+  display: flex;
+  align-items: center;
+}
+.strip li:first-child .strip-no {
+  padding-left: 0;
+}
+.strip-no {
+  padding: 0 2px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.strip-move {
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.strip-move.current {
+  background: var(--fg);
+  color: var(--bg);
+}
+.glyph {
+  margin-left: 2px;
+  font-weight: 800;
+}
+.c-inaccuracy {
+  color: var(--c-inaccuracy);
+}
+.c-brilliant {
+  color: var(--c-brilliant);
+}
+.c-mistake {
+  color: var(--c-mistake);
+}
+.c-blunder {
+  color: var(--c-blunder);
+}
+.strip-move.current .glyph {
+  color: inherit;
+}
+@media (min-width: 760px) {
+  .strip {
+    flex-wrap: wrap;
+    max-height: 168px;
+    overflow-y: auto;
+    white-space: normal;
+    padding: 6px 8px;
+  }
+}
+
+/* ---------- eval bar + engine ---------- */
+/* Phones: a thin bar across the top of the board, so the board itself
+   stays edge to edge. Wide screens: the usual bar on the board's left. */
+.eval-bar {
+  position: relative;
+  flex: none;
+  width: var(--board);
+  height: 6px;
+  overflow: hidden;
+  background: var(--eval-dark);
+}
+.eval-bar.hidden {
+  visibility: hidden;
+}
+.eval-white {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--eval-light);
+  transition: width 400ms ease;
+}
+@media (max-width: 759px) {
+  .eval-white {
+    height: auto !important; /* horizontal: the inline width is the share */
+  }
+}
+.eval-bar.flipped .eval-white {
+  left: auto;
+  right: 0;
+}
+.eval-bar.off {
+  opacity: 0.4;
+}
+@media (min-width: 760px) {
+  .eval-bar {
+    width: 14px;
+    height: auto;
+    margin-right: 6px;
+    border-radius: 3px;
+  }
+  .eval-white {
+    top: auto;
+    right: 0;
+    width: auto !important; /* vertical: the inline height is the share */
+    transition: height 400ms ease;
+  }
+  .eval-bar.flipped .eval-white {
+    top: 0;
+    bottom: auto;
+    left: 0;
+  }
+}
+.engine-sum {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  font-size: 15px;
+}
+.engine-eval {
+  font-variant-numeric: tabular-nums;
+}
+.engine-pv {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+.engine-depth {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pv-list {
+  margin-bottom: 8px;
+}
+.info .pv-list {
+  margin: 0;
+}
+.info .pv {
+  min-height: var(--row-h, 30px);
+}
+/* Shown only in the folded single row under the board. */
+.screen-top .compact-only {
+  display: none;
+}
+.info-row > .line {
+  flex: 1;
+  min-width: 0;
+}
+.pv {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  align-items: center;
+}
+.pv-eval {
+  min-width: 42px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pv-moves {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+/* ---------- promotion ---------- */
+.promo-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgb(0 0 0 / 0.35);
+}
+.promo-picker {
+  position: absolute;
+  width: 12.5%;
+  display: flex;
+}
+.promo-choice {
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 6%;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  cursor: pointer;
+}
+.promo-choice:hover,
+.promo-choice:focus-visible {
+  border-radius: 12%;
+  background: var(--sq-light);
+  outline: none;
+}
+.promo-choice.cg-wrap piece {
+  position: static;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* ---------- move entry ---------- */
+.move-input {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.move-input-field {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 16px; /* 16px keeps iOS from zooming in on focus */
+}
+.move-input-field:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.move-input-error {
+  flex: none;
+  font-size: 13px;
+  color: var(--bad);
+}
+
+/* ---------- puzzle ---------- */
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.streak .icon {
+  color: #e07b1a;
+}
+
+/* ---------- poll ---------- */
+
+/* ---------- review ---------- */
+.verdict {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  font-size: 15px;
+  font-weight: 600;
+}
+.verdict-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.verdict-text.c-best,
+.verdict-text.c-excellent,
+.verdict-text.c-good {
+  color: var(--fg);
+}
+.verdict-eval {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.player-row .player-name {
+  flex: 1;
+}
+.player-marks {
+  display: inline-flex;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.player-marks .glyph {
+  margin-left: 1px;
+}
+.player-acc strong {
+  font-variant-numeric: tabular-nums;
+}
+.players li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+/* The same two discs in both themes: white and black, each ringed. */
+.disc {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #8a857c;
+}
+.disc.white {
+  background: #fff;
+}
+.disc.black {
+  background: #000;
+}
+.player-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.accuracy {
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--fg);
+}
+.win-graph {
+  position: relative;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--eval-dark);
+  cursor: pointer;
+}
+.win-graph svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.wg-white {
+  fill: var(--eval-light);
+}
+.wg-line {
+  fill: none;
+  stroke: none;
+}
+.wg-mid {
+  stroke: rgb(128 128 128 / 0.5);
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+.wg-cursor {
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.wg-mark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--c-blunder);
+  pointer-events: none;
+}
+.wg-mark.c-mistake {
+  background: var(--c-mistake);
+}
+.counts {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.counts th,
+.counts td {
+  height: 36px;
+  padding: 0 14px 0 0;
+  text-align: left;
+  font-weight: 500;
+}
+.counts thead th {
+  font-size: 12px;
+  color: var(--muted);
+}
+.counts thead th:not(:first-child) {
+  text-align: right;
+}
+.counts td {
+  text-align: right;
+  min-width: 52px;
+}
+.counts :is(th, td):not(:first-child) {
+  width: 28%;
+}
+.counts :is(th, td):last-child {
+  padding-right: 0;
+}
+.counts tbody tr {
+  border-top: 1px solid var(--line);
+}
+.counts .glyph {
+  display: inline-block;
+  width: 22px;
+  margin: 0;
+}
+
+/* ---------- guess the elo ---------- */
+.guess {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.guess .btn {
+  flex: none;
+  min-width: 96px;
+}
+.guess-value {
+  flex: none;
+  min-width: 4ch;
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.guess-slider {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  margin: 0;
+  accent-color: var(--fg);
+}
+.histogram {
+  margin: 0;
+}
+.histogram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.hist-bar {
+  fill: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.hist-answer {
+  stroke: var(--good);
+  stroke-width: 2;
+}
+.hist-guess {
+  stroke: var(--fg);
+  stroke-width: 2;
+  stroke-dasharray: 3 2;
+}
+.hist-label {
+  font-size: 9px;
+  fill: var(--muted);
+}
+.key {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  margin: 0 4px 3px 12px;
+  vertical-align: middle;
+}
+.key:first-child {
+  margin-left: 0;
+}
+.key-answer {
+  background: var(--good);
+}
+.key-guess {
+  /* Dashed like the chart's line for your guess. */
+  background: repeating-linear-gradient(
+    to right,
+    var(--fg) 0 3px,
+    transparent 3px 5px
+  );
+}
+
+/* ---------- leaderboard ---------- */
+.leaderboard {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  padding: 0 var(--gutter) 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lb-kinds {
+  display: flex;
+  gap: 18px;
+  height: var(--top-h);
+  align-items: center;
+}
+.lb-kind {
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lb-kind[aria-pressed='true'] {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+}
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  border-bottom: 1px solid var(--line);
+}
+/* A long board scrolls; your own row stays in view at its edge. */
+.lb-row.me {
+  position: sticky;
+  top: 0;
+  bottom: 0;
+  background: var(--bg);
+}
+.lb-row.me {
+  font-weight: 700;
+}
+.lb-row.detached {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.lb-rank {
+  width: 24px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lb-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-value {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lb-row.me .lb-value {
+  color: var(--fg);
+}
+.lb-remove {
+  min-width: 32px;
+  height: 32px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.lb-remove.armed {
+  color: var(--bad);
+}
+.lb-state {
+  padding: 32px 0;
+  text-align: center;
+}
+
+/* ---------- sheets ---------- */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.45);
+  animation: fade 150ms ease;
+}
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(100%, 460px);
+  max-height: 92dvh;
+  overflow-y: auto;
+  padding: 8px var(--gutter) calc(20px + env(safe-area-inset-bottom));
+  border-radius: 14px 14px 0 0;
+  background: var(--bg);
+  animation: rise 200ms ease;
+}
+.sheet:focus {
+  outline: none;
+}
+@media (min-width: 760px) {
+  .sheet-backdrop {
+    align-items: center;
+  }
+  .sheet {
+    border-radius: 14px;
+    padding-bottom: 20px;
+  }
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+}
+.sheet-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+.sheet > *,
+.sheet-form > *,
+.editor > * {
+  /* iOS Safari shrinks aspect-ratio children of a scrolling flex column to
+     zero height (the "no board" bug in the poll editor). */
+  flex-shrink: 0;
+}
+.sheet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sheet-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* Boards in sheets get explicit sizes that are multiples of 8 px:
+   Chessground measures its element once it exists, and iOS can give an
+   aspect-ratio box in a scrolling flex column no height at that moment. */
+.sheet-board {
+  width: 280px;
+  height: 280px;
+  flex: none;
+}
+.sheet-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sheet-nav .nav-btn {
+  flex: 0 0 56px;
+  height: 40px;
+}
+.sheet .strip {
+  height: 40px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.field input,
+.field select,
+.field textarea {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 16px;
+  font-weight: 400;
+}
+.field textarea {
+  resize: none;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.field :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.choices li + li {
+  border-top: 1px solid var(--line);
+}
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.choice-label {
+  font-size: 16px;
+  font-weight: 700;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+/* ---------- loading / error ---------- */
+.skel {
+  display: block;
+  border-radius: 4px;
+  background: var(--surface-2);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.skel-title {
+  width: 160px;
+  height: 16px;
+}
+.skel-line {
+  width: 200px;
+  height: 14px;
+}
+.skel-board {
+  width: 100%;
+  border-radius: 0;
+  opacity: 0.35;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+.center-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+.lb-edit {
+  margin-left: auto;
+}
+.pv-tag {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ---------- position editor ---------- */
+.editor {
+  --editor-board: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.editor-board {
+  width: var(--editor-board);
+  height: var(--editor-board);
+  flex: none;
+}
+.editor-side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.editor-side-label {
+  margin-right: 4px;
+  font-size: 14px;
+  color: var(--muted);
+}
+/* Square cells with an explicit size: WebKit doesn't honour aspect-ratio
+   on grid buttons reliably, and Chessground's "cover" crops a piece in a
+   cell that isn't square. */
+.tray {
+  display: flex;
+  justify-content: space-between;
+  width: var(--editor-board);
+}
+.tray-piece {
+  box-sizing: border-box; /* .cg-wrap is content-box */
+  flex: none;
+  width: 48px;
+  height: 48px;
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.tray-piece.on {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.tray-piece.cg-wrap piece {
+  position: static;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.editor-tools {
+  display: flex;
+  gap: 6px;
+}
+.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chip-btn.on {
+  border-color: var(--fg);
+}
+
+/* ---------- elo reveal ---------- */
+.elo-big {
+  font-size: 17px;
+}
+.elo-big strong {
+  font-variant-numeric: tabular-nums;
+}
+.off-near {
+  color: var(--good);
+}
+.off-mid {
+  color: #c98a12;
+}
+.off-far {
+  color: var(--bad);
+}
+.summary-text .caption {
+  color: var(--fg);
+}
+.summary-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+cg-board square.cls-brilliant {
+  background-color: rgb(30 170 170 / 0.5);
+}

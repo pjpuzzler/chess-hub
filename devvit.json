@@ -1,0 +1,188 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "chess-hub",
+  "post": {
+    "dir": "dist/client",
+    "entrypoints": {
+      "default": {
+        "inline": true,
+        "entry": "splash.html",
+        "height": "short",
+        "styles": {
+          "height": 264
+        }
+      },
+      "game": {
+        "entry": "game.html"
+      }
+    }
+  },
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+  "permissions": {
+    "http": {
+      "enable": true,
+      "domains": ["lichess.org"]
+    },
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "asUser": ["SUBMIT_POST"]
+    }
+  },
+  "settings": {
+    "subreddit": {
+      "dailyPuzzle": {
+        "type": "boolean",
+        "label": "Post a daily puzzle",
+        "defaultValue": true
+      },
+      "postHourUtc": {
+        "type": "number",
+        "label": "Posting hour (UTC, 0-23)",
+        "helpText": "When the daily puzzle and Guess the Elo go up.",
+        "defaultValue": 13,
+        "validationEndpoint": "/internal/settings/validate-hour"
+      },
+      "pinDailyPuzzle": {
+        "type": "select",
+        "label": "Pin the daily puzzle",
+        "options": [
+          {
+            "label": "Community highlight",
+            "value": "highlight"
+          },
+          {
+            "label": "Sticky",
+            "value": "sticky"
+          },
+          {
+            "label": "Don't pin",
+            "value": "off"
+          }
+        ],
+        "defaultValue": "highlight"
+      },
+      "highlightGame": {
+        "type": "boolean",
+        "label": "Highlight the community game",
+        "helpText": "Keeps the current community game post in Community Highlights.",
+        "defaultValue": true
+      },
+      "guessTheElo": {
+        "type": "select",
+        "label": "Guess the Elo game",
+        "options": [
+          {
+            "label": "Weekly (Saturdays)",
+            "value": "weekly"
+          },
+          {
+            "label": "Daily",
+            "value": "daily"
+          },
+          {
+            "label": "Off",
+            "value": "off"
+          }
+        ],
+        "defaultValue": "weekly"
+      },
+      "memberPosts": {
+        "type": "boolean",
+        "label": "Members can post",
+        "helpText": "Game reviews, Guess my Elo and move polls, up to 5 a day per person.",
+        "defaultValue": true
+      }
+    }
+  },
+  "scheduler": {
+    "tasks": {
+      "daily-puzzle": {
+        "endpoint": "/internal/scheduler/daily-puzzle",
+        "cron": "0 * * * *"
+      }
+    }
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "New move poll",
+        "description": "Chess Hub",
+        "location": "subreddit",
+        "forUserType": "user",
+        "endpoint": "/internal/menu/poll-new"
+      },
+      {
+        "label": "Review a chess game",
+        "description": "Chess Hub",
+        "location": "subreddit",
+        "forUserType": "user",
+        "endpoint": "/internal/menu/review-new"
+      },
+      {
+        "label": "Guess my Elo",
+        "description": "Chess Hub",
+        "location": "subreddit",
+        "forUserType": "user",
+        "endpoint": "/internal/menu/elo-new"
+      },
+      {
+        "label": "Post today's daily puzzle",
+        "description": "Chess Hub",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/daily-post"
+      },
+      {
+        "label": "Post a Guess the Elo game now",
+        "description": "Chess Hub",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/elo-post"
+      },
+      {
+        "label": "Start a community game",
+        "description": "Chess Hub",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/game-start"
+      },
+      {
+        "label": "End community game",
+        "description": "Chess Hub",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/game-end"
+      },
+      {
+        "label": "Close this poll",
+        "description": "Chess Hub",
+        "location": "post",
+        "forUserType": "moderator",
+        "postFilter": "currentApp",
+        "endpoint": "/internal/menu/poll-close"
+      }
+    ]
+  },
+  "forms": {
+    "pollForm": "/internal/form/poll-submit",
+    "reviewForm": "/internal/form/review-submit",
+    "eloForm": "/internal/form/elo-submit",
+    "gameStartForm": "/internal/form/game-start",
+    "gameEndForm": "/internal/form/game-end"
+  },
+  "triggers": {
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onPostDelete": "/internal/triggers/on-post-delete"
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "marketingAssets": {
+    "icon": "assets/icon.png"
+  }
+}

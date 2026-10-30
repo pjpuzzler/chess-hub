@@ -1,0 +1,192 @@
+/* Inline feed card. Column layout when the post is taller than wide, row otherwise. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* splash.ts picks the layout that gives the bigger board: "col" (board on
+   top, one text row below) or "row" (board left, text right), and sets the
+   board's whole-pixel size. */
+.card {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+}
+.card.col {
+  flex-direction: column;
+}
+
+.board {
+  flex: none;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 120ms ease;
+}
+.board:active {
+  transform: scale(0.985);
+}
+.board:focus-visible,
+.cta:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Row: text column right of the board. */
+.info {
+  flex: 1;
+  min-width: 0;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+/* Col: one row under the board, text left and the button right. */
+.card.col .info {
+  flex: none;
+  width: 100%;
+  max-width: 440px;
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'eyebrow cta'
+    'title cta'
+    'meta cta';
+  align-content: center;
+  column-gap: 12px;
+  row-gap: 2px;
+}
+.card.col .eyebrow {
+  grid-area: eyebrow;
+}
+.card.col .title {
+  grid-area: title;
+}
+.card.col .meta {
+  grid-area: meta;
+}
+.card.col .cta {
+  grid-area: cta;
+  align-self: center;
+  margin: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  text-wrap: balance;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.title {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+  text-wrap: balance;
+  /* Our titles fit in two lines; a long poll question from a mod gets
+     three, then an ellipsis. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta,
+.note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.note {
+  color: var(--fg);
+  font-weight: 600;
+}
+.meta.error {
+  color: var(--bad);
+}
+
+.cta {
+  margin-top: 8px;
+  min-height: 40px;
+  padding: 0 18px;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 999px;
+  font: 700 15px var(--font);
+  cursor: pointer;
+  background: var(--accent);
+  color: var(--accent-fg);
+  transition: background 120ms ease;
+}
+.cta:hover {
+  background: var(--accent-hover);
+}
+.cta.done {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+.skeleton {
+  background: var(--surface-2);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.skeleton.line {
+  display: block;
+  max-width: 100%; /* stays inside the text column at any width */
+  height: 14px;
+  width: 120px;
+  border-radius: 7px;
+  margin: 4px 0;
+}
+.skeleton.line.wide {
+  height: 18px;
+  width: 180px;
+}
+.mini-board.skeleton {
+  background: var(--surface-2);
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Narrow cards (320 px phones): a size down, still >= 16 px. */
+@media (max-width: 359px) {
+  .title {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Winning-move arrow on closed / voted polls. */
+.mini-board .arrow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.mini-board .arrow line {
+  stroke: rgb(21 120 27 / 0.8);
+  stroke-width: 0.22;
+  stroke-linecap: round;
+}
+.mini-board .arrow path {
+  fill: rgb(21 120 27 / 0.8);
+}
